@@ -78,13 +78,12 @@ header .who{font-size:13px;opacity:.95}
   min-height:130px;padding:8px 4px;display:flex;gap:4px;flex-wrap:wrap;align-content:flex-start;justify-content:center;}
 
 .slot{flex:1 1 calc(50% - 4px);min-width:0;background:transparent;border:none;border-radius:0;
-  padding:4px 2px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;
+  padding:8px 4px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;
   font-size:14px;cursor:pointer;transition:background .15s;border-right:1px dashed #d6e0da;}
 .slot:last-child{border-right:none}
 .slot:only-child{flex-basis:100%;border-right:none}
-.slot .name{font-weight:600;color:#2b3a31;font-size:16px;letter-spacing:1px}
-.slot .time{color:#3d5147;font-size:14px;white-space:nowrap;font-weight:500}
-.slot .tilde{color:#7a8a80;font-size:13px;line-height:1.1}
+.slot .name{font-weight:600;color:#2b3a31;font-size:17px;letter-spacing:1px}
+.slot .time{color:#3d5147;font-size:14px;white-space:nowrap;font-weight:500;font-variant-numeric:tabular-nums}
 .slot.exc-leave{background:#fff4f1;border-color:#f1c2b9}
 .slot.exc-sub{background:#fff8e1;border-color:#e6d49a}
 .slot.exc-cancel{background:#f0f0f0;border-color:#d0d0d0;text-decoration:line-through;color:var(--muted)}
@@ -108,6 +107,26 @@ header .who{font-size:13px;opacity:.95}
 .list .row .body{flex:1}
 .list .row .actions{display:flex;gap:6px}
 .list .row .actions .btn{padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:#fff}
+
+/* Hours report */
+.hours-card{background:#fff;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;
+  box-shadow:var(--shadow);overflow:hidden}
+.hours-card .head{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;background:#fafdfb}
+.hours-card .head:hover{background:var(--green-l)}
+.hours-card .head .doc{font-size:16px;font-weight:600;color:var(--text);min-width:90px}
+.hours-card .head .stat{font-size:13px;color:var(--muted)}
+.hours-card .head .total{margin-left:auto;font-size:18px;font-weight:600;color:var(--green-d)}
+.hours-card .head .total small{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px}
+.hours-card .head .arrow{color:var(--muted);transition:transform .2s}
+.hours-card.open .head .arrow{transform:rotate(90deg)}
+.hours-card .detail{display:none;padding:0;border-top:1px solid var(--line)}
+.hours-card.open .detail{display:block}
+.hours-card .detail table{width:100%;border-collapse:collapse;font-size:13px}
+.hours-card .detail th,.hours-card .detail td{padding:6px 10px;text-align:left;border-bottom:1px solid #f0f3f0}
+.hours-card .detail th{background:#f6f8f6;color:var(--muted);font-weight:500}
+.hours-card .detail tr:last-child td{border-bottom:none}
+.hours-summary-pill{background:var(--green-l);color:var(--green-d);border-radius:8px;padding:10px 14px;
+  display:flex;gap:18px;align-items:center;font-size:14px;flex-wrap:wrap}
 
 /* History page */
 .hist-row{font-size:13px;background:#fff;padding:8px 12px;border-bottom:1px solid var(--line);}
@@ -170,6 +189,7 @@ body.exporting .slot{cursor:default !important}
 
 <nav class="tabs">
   <button data-tab="schedule" class="active" type="button">班表</button>
+  <button data-tab="hours" type="button">工時報表</button>
   <button data-tab="exceptions" type="button">例外記錄</button>
   <button data-tab="history" type="button">修改歷史</button>
 </nav>
@@ -186,6 +206,7 @@ body.exporting .slot{cursor:default !important}
     <button class="btn" id="btn-refresh" type="button">重新整理</button>
     <button class="btn" id="btn-export-png" type="button">匯出 PNG</button>
     <button class="btn" id="btn-export-pdf" type="button">匯出 PDF</button>
+    <button class="btn hide" id="btn-apply-tpl" type="button">套用週範本到月份</button>
     <button class="btn primary hide" id="btn-edit-mode" type="button">進入編輯模式</button>
   </div>
   <div class="schedule-wrap">
@@ -211,6 +232,24 @@ body.exporting .slot{cursor:default !important}
       <div class="schedule" id="schedule-grid"><!-- generated --></div>
     </div>
   </div>
+</section>
+
+<!-- 工時報表頁 -->
+<section id="page-hours" class="hide">
+  <div class="toolbar">
+    <span class="pill">薪資工時計算</span>
+    <div class="grow"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+      期間 <input type="date" id="hours-from" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
+      ~ <input type="date" id="hours-to" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
+    </label>
+    <button class="btn" id="btn-hours-this-month" type="button">本月</button>
+    <button class="btn" id="btn-hours-last-month" type="button">上月</button>
+    <button class="btn primary" id="btn-hours-load" type="button">查詢</button>
+    <button class="btn" id="btn-hours-csv" type="button">匯出 CSV</button>
+  </div>
+  <div class="list" id="hours-summary" style="padding:14px 14px 0 14px"></div>
+  <div class="list" id="hours-table"></div>
 </section>
 
 <!-- 例外記錄頁 -->
@@ -254,12 +293,7 @@ body.exporting .slot{cursor:default !important}
     <h2 id="slot-title">新增排班</h2>
     <div class="body">
       <div class="row2">
-        <label>星期
-          <select id="slot-weekday">
-            <option value="1">週一</option><option value="2">週二</option><option value="3">週三</option>
-            <option value="4">週四</option><option value="5">週五</option><option value="6">週六</option><option value="7">週日</option>
-          </select>
-        </label>
+        <label>日期 <input id="slot-date" type="date" required></label>
         <label>時段
           <select id="slot-session"><option>早診</option><option>午診</option><option>晚診</option></select>
         </label>
@@ -275,11 +309,36 @@ body.exporting .slot{cursor:default !important}
         <label>顯示順序 <input id="slot-sort" type="number" min="1" value="1"></label>
         <label>備註 <input id="slot-note" type="text" placeholder="（選填）"></label>
       </div>
+      <div id="slot-hours-info" style="font-size:13px;color:var(--muted);text-align:right">時數：—</div>
     </div>
     <div class="foot">
       <button class="btn warn hide" type="button" id="btn-slot-del">刪除</button>
       <button class="btn" type="button" data-close="mask-slot">取消</button>
       <button class="btn primary" type="button" id="btn-slot-save">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 套用週範本 Modal -->
+<div class="mask" id="mask-apply">
+  <div class="modal">
+    <h2>套用週範本到月份</h2>
+    <div class="body">
+      <p style="margin:0;color:var(--muted);font-size:13px">
+        會把「週範本」依星期展開到所選月份的每一天，並寫入「排班記錄」。<br>
+        日後針對特定日期的調整（請假、代班、增減時段）可以直接修改該天的排班，不會影響範本。
+      </p>
+      <label>目標月份 <input id="apply-month" type="month" required></label>
+      <label>套用模式
+        <select id="apply-mode">
+          <option value="append">附加（保留現有排班）</option>
+          <option value="replace">覆蓋（先停用該月既有排班再寫入）</option>
+        </select>
+      </label>
+    </div>
+    <div class="foot">
+      <button class="btn" type="button" data-close="mask-apply">取消</button>
+      <button class="btn primary" type="button" id="btn-do-apply">套用</button>
     </div>
   </div>
 </div>
@@ -337,9 +396,11 @@ var STATE = {
   clinic: 'yingge',
   clinics: [],
   doctors: [],
-  schedule: [],          // 班表模板
+  schedule: [],          // 排班記錄（按日期）
   exceptions: [],        // 例外記錄
-  refDate: '',           // YYYY-MM-DD（影響 exception 顯示的「本週」）
+  refDate: '',           // YYYY-MM-DD（影響顯示的「本週」）
+  weekDates: [],         // 本週 7 天的日期
+  hoursReport: null,     // 工時報表暫存
   editMode: false
 };
 var EDIT_SLOT = null;    // 目前編輯中的 slot 物件
@@ -436,6 +497,18 @@ function bindEvents(){
   $('login-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   // 例外新增
   $('btn-add-exc').addEventListener('click', function(){ openExcModal(null); });
+  // 套用週範本
+  $('btn-apply-tpl').addEventListener('click', openApplyModal);
+  $('btn-do-apply').addEventListener('click', doApplyTemplate);
+  // 工時報表
+  $('btn-hours-load').addEventListener('click', loadHours);
+  $('btn-hours-this-month').addEventListener('click', function(){ setHoursDateRange('this'); loadHours(); });
+  $('btn-hours-last-month').addEventListener('click', function(){ setHoursDateRange('last'); loadHours(); });
+  $('btn-hours-csv').addEventListener('click', exportHoursCSV);
+  // Slot 起訖時間變動 → 即時計算時數
+  ['slot-start','slot-end'].forEach(function(id){
+    $(id).addEventListener('input', updateSlotHoursInfo);
+  });
   // Modal close
   document.querySelectorAll('[data-close]').forEach(function(b){
     b.addEventListener('click', function(){ hide(b.dataset.close); });
@@ -458,10 +531,14 @@ function switchTab(tab){
   document.querySelectorAll('.tabs button').forEach(function(b){
     b.classList.toggle('active', b.dataset.tab===tab);
   });
-  hide('page-schedule'); hide('page-exceptions'); hide('page-history');
+  ['schedule','hours','exceptions','history'].forEach(function(t){ hide('page-'+t); });
   show('page-'+tab);
   if (tab==='exceptions') renderExceptions();
   if (tab==='history') loadHistory();
+  if (tab==='hours' && (!$('hours-from').value || !$('hours-to').value)){
+    setHoursDateRange('this');
+    if (STATE.user) loadHours();
+  }
 }
 
 /* ===================== 認證 ===================== */
@@ -470,14 +547,14 @@ function applyAuthUI(){
     $('who').textContent = STATE.user.name + ' · ' + (STATE.user.role==='admin'?'管理者':'員工');
     hide('btn-login'); show('btn-logout');
     if (STATE.user.role==='admin'){
-      show('btn-edit-mode'); show('btn-add-exc');
+      show('btn-edit-mode'); show('btn-add-exc'); show('btn-apply-tpl');
     } else {
-      hide('btn-edit-mode'); hide('btn-add-exc');
+      hide('btn-edit-mode'); hide('btn-add-exc'); hide('btn-apply-tpl');
     }
   } else {
     $('who').textContent = '未登入';
     show('btn-login'); hide('btn-logout');
-    hide('btn-edit-mode'); hide('btn-add-exc');
+    hide('btn-edit-mode'); hide('btn-add-exc'); hide('btn-apply-tpl');
     STATE.editMode = false;
     document.body.classList.remove('edit-on');
   }
@@ -554,7 +631,11 @@ function loadAll(){
 }
 
 function loadSchedule(){
-  get({action:'getSchedule', clinic:STATE.clinic}, function(r){
+  // 撈取本週日期區間（週一~週日）
+  var weekDates = weekRange(STATE.refDate || todayStr());
+  var from = weekDates[0], to = weekDates[6];
+  STATE.weekDates = weekDates;
+  get({action:'getSchedule', clinic:STATE.clinic, from:from, to:to}, function(r){
     if (r.error){ toast('載入班表失敗：'+r.error,'err'); return; }
     STATE.schedule = r.rows || [];
     renderSchedule();
@@ -618,9 +699,9 @@ function renderSchedule(){
       var cell=document.createElement('div'); cell.className='cell'+rowLast;
       var dateStr = weekDates[w-1];
 
-      // 該格子的 base slots
+      // 該格子的 base slots（按日期 + 時段）
       var items = STATE.schedule.filter(function(r){
-        return r.weekday===w && r.session===session;
+        return r.date===dateStr && r.session===session;
       }).sort(function(a,b){ return (a.sort||0)-(b.sort||0); });
 
       // 套用例外標記
@@ -643,9 +724,9 @@ function renderSchedule(){
       if (STATE.editMode){
         var btn=document.createElement('button'); btn.type='button'; btn.className='add-btn';
         btn.textContent='＋ 新增排班';
-        (function(week, ses){
-          btn.addEventListener('click', function(){ openSlotModal(null, week, ses); });
-        })(w, session);
+        (function(d, ses){
+          btn.addEventListener('click', function(){ openSlotModal(null, d, ses); });
+        })(dateStr, session);
         cell.appendChild(btn);
       }
       grid.appendChild(cell);
@@ -656,7 +737,7 @@ function renderSchedule(){
 function makeSlot(it, exc){
   var div=document.createElement('div'); div.className='slot';
   var name = it.doctor;
-  var time = it.start+'<div class="tilde">~</div>'+it.end;
+  var time = it.start+'~'+it.end;
   var tag = '';
   if (exc){
     if (exc.type==='請假'){ div.classList.add('exc-leave'); tag='<div class="tag">請假</div>'; }
@@ -664,7 +745,7 @@ function makeSlot(it, exc){
     else if (exc.type==='代班' && exc.subDoctor){
       div.classList.add('exc-sub');
       name = exc.subDoctor + '<div class="tag">代 '+it.doctor+'</div>';
-      if (exc.start && exc.end) time = exc.start+'<div class="tilde">~</div>'+exc.end;
+      if (exc.start && exc.end) time = exc.start+'~'+exc.end;
     }
   }
   div.innerHTML = '<div class="name">'+name+'</div><div class="time">'+time+'</div>'+tag;
@@ -677,17 +758,17 @@ function makeSlot(it, exc){
 function makeExcOnlySlot(e){
   var div=document.createElement('div'); div.className='slot exc-sub';
   var name = (e.subDoctor||e.origDoctor||'加診') + '<div class="tag">加診</div>';
-  var time = (e.start||'')+'<div class="tilde">~</div>'+(e.end||'');
+  var time = (e.start||'')+'~'+(e.end||'');
   div.innerHTML = '<div class="name">'+name+'</div><div class="time">'+time+'</div>';
   return div;
 }
 
 /* ===================== 排班 Modal ===================== */
-function openSlotModal(it, weekday, session){
+function openSlotModal(it, date, session){
   if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
   EDIT_SLOT = it ? Object.assign({}, it) : null;
   $('slot-title').textContent = it ? '編輯排班' : '新增排班';
-  $('slot-weekday').value = it ? it.weekday : (weekday||1);
+  $('slot-date').value    = it ? it.date    : (date || todayStr());
   $('slot-session').value = it ? it.session : (session||'早診');
   $('slot-doctor').value  = it ? it.doctor  : (STATE.doctors[0]||'');
   $('slot-start').value   = it ? it.start   : '';
@@ -695,7 +776,16 @@ function openSlotModal(it, weekday, session){
   $('slot-sort').value    = it ? (it.sort||1) : 1;
   $('slot-note').value    = it ? (it.note||'') : '';
   $('btn-slot-del').classList.toggle('hide', !it);
+  updateSlotHoursInfo();
   show('mask-slot');
+}
+function updateSlotHoursInfo(){
+  var s=$('slot-start').value, e=$('slot-end').value;
+  var info=$('slot-hours-info');
+  if (s && e && s < e) {
+    var h = ((parseInt(e.slice(0,2))*60+parseInt(e.slice(3,5))) - (parseInt(s.slice(0,2))*60+parseInt(s.slice(3,5))))/60;
+    info.textContent = '時數：' + (Math.round(h*100)/100) + ' 小時';
+  } else { info.textContent = '時數：—'; }
 }
 
 function saveSlot(){
@@ -704,7 +794,7 @@ function saveSlot(){
     operator: STATE.user ? STATE.user.name : '',
     clinic: STATE.clinic,
     id: EDIT_SLOT ? EDIT_SLOT.id : '',
-    weekday: $('slot-weekday').value,
+    date:    $('slot-date').value,
     session: $('slot-session').value,
     doctor:  $('slot-doctor').value,
     start:   $('slot-start').value,
@@ -712,6 +802,7 @@ function saveSlot(){
     sort:    $('slot-sort').value || 1,
     note:    $('slot-note').value || ''
   };
+  if(!p.date){ toast('請選擇日期','err'); return; }
   if(!p.start || !p.end){ toast('請填寫起訖時間','err'); return; }
   if (p.start >= p.end){ toast('結束時間須晚於起始時間','err'); return; }
   $('btn-slot-save').disabled = true;
@@ -724,11 +815,130 @@ function saveSlot(){
 
 function deleteSlot(){
   if (!EDIT_SLOT) return;
-  if (!confirm('確定刪除此排班？\n\n醫師：'+EDIT_SLOT.doctor+'\n星期：'+EDIT_SLOT.weekday+'\n時段：'+EDIT_SLOT.session)) return;
+  if (!confirm('確定刪除此排班？\n\n日期：'+EDIT_SLOT.date+'\n醫師：'+EDIT_SLOT.doctor+'\n時段：'+EDIT_SLOT.session)) return;
   get({action:'deleteSlot', id:EDIT_SLOT.id, operator:(STATE.user?STATE.user.name:'')}, function(r){
     if (r.error){ toast(r.error,'err'); return; }
     hide('mask-slot'); toast('已刪除','ok'); loadSchedule();
   });
+}
+
+/* ===================== 套用週範本 ===================== */
+function openApplyModal(){
+  if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
+  var d = new Date(STATE.refDate || todayStr());
+  $('apply-month').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  $('apply-mode').value = 'append';
+  show('mask-apply');
+}
+function doApplyTemplate(){
+  var month = $('apply-month').value;
+  var mode  = $('apply-mode').value;
+  if (!month){ toast('請選擇月份','err'); return; }
+  if (mode==='replace' && !confirm('「覆蓋」會先停用 '+month+' 該月所有現有排班，再依範本重寫。確定？')) return;
+  $('btn-do-apply').disabled = true;
+  get({action:'applyTemplate', clinic:STATE.clinic, month:month, mode:mode,
+       operator: STATE.user ? STATE.user.name : ''}, function(r){
+    $('btn-do-apply').disabled = false;
+    if (r.error){ toast(r.error,'err'); return; }
+    hide('mask-apply');
+    toast('已新增 '+r.added+' 筆排班'+(r.cleared?'，停用 '+r.cleared+' 筆':''),'ok');
+    loadSchedule();
+  });
+}
+
+/* ===================== 工時報表 ===================== */
+function setHoursDateRange(which){
+  var now = new Date();
+  if (which==='last') now.setMonth(now.getMonth()-1);
+  var y=now.getFullYear(), m=now.getMonth();
+  var first = new Date(y, m, 1);
+  var last  = new Date(y, m+1, 0);
+  var pad=function(n){return String(n).padStart(2,'0')};
+  $('hours-from').value = first.getFullYear()+'-'+pad(first.getMonth()+1)+'-'+pad(first.getDate());
+  $('hours-to').value   = last.getFullYear() +'-'+pad(last.getMonth()+1) +'-'+pad(last.getDate());
+}
+function loadHours(){
+  var f=$('hours-from').value, t=$('hours-to').value;
+  if (!f || !t){ toast('請選擇期間','err'); return; }
+  if (f > t){ toast('起日不可晚於迄日','err'); return; }
+  $('hours-summary').innerHTML='<div style="text-align:center;color:var(--muted);padding:14px">查詢中...</div>';
+  $('hours-table').innerHTML='';
+  get({action:'getHoursReport', clinic:STATE.clinic, from:f, to:t}, function(r){
+    if (r.error){
+      $('hours-summary').innerHTML='<div style="color:var(--warn);padding:14px">'+r.error+'</div>';
+      return;
+    }
+    STATE.hoursReport = r;
+    renderHours(r);
+  });
+}
+function renderHours(r){
+  // 摘要
+  var sum=$('hours-summary');
+  sum.innerHTML = '<div class="hours-summary-pill">'+
+    '<span>期間：<b>'+r.from+'</b> ~ <b>'+r.to+'</b></span>'+
+    '<span>醫師人次：<b>'+r.rows.length+'</b></span>'+
+    '<span>總時數：<b>'+r.grandTotal+'</b> 小時</span>'+
+    '</div>';
+  // 列表
+  var box=$('hours-table'); box.innerHTML='';
+  if (!r.rows.length){
+    box.innerHTML='<div style="color:var(--muted);text-align:center;padding:30px">該期間沒有排班記錄</div>';
+    return;
+  }
+  r.rows.forEach(function(row, idx){
+    var card=document.createElement('div'); card.className='hours-card';
+    var headHtml = '<div class="head" data-idx="'+idx+'">'
+      +'<span class="arrow">▶</span>'
+      +'<span class="doc">'+row.doctor+'</span>'
+      +'<span class="stat">出勤 '+row.days+' 天 · '+row.details.length+' 個時段</span>'
+      +'<span class="total">'+row.totalHours+' <small>小時</small></span>'
+      +'</div>';
+    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>備註</th></tr></thead><tbody>';
+    row.details.forEach(function(d){
+      rowsHtml += '<tr>'
+        +'<td>'+d.date+'</td>'
+        +'<td>'+WEEK[(d.weekday||1)-1]+'</td>'
+        +'<td>'+d.session+'</td>'
+        +'<td>'+(d.start||'')+'~'+(d.end||'')+'</td>'
+        +'<td style="text-align:right">'+(d.hours||0)+'</td>'
+        +'<td style="color:var(--muted)">'+(d.note||'')+'</td>'
+        +'</tr>';
+    });
+    rowsHtml += '</tbody></table>';
+    card.innerHTML = headHtml + '<div class="detail">'+rowsHtml+'</div>';
+    card.querySelector('.head').addEventListener('click', function(){
+      card.classList.toggle('open');
+    });
+    box.appendChild(card);
+  });
+}
+function exportHoursCSV(){
+  var r = STATE.hoursReport;
+  if (!r || !r.rows || !r.rows.length){ toast('請先查詢','err'); return; }
+  var lines = ['醫師,日期,星期,時段,起始,結束,時數,備註'];
+  r.rows.forEach(function(row){
+    row.details.forEach(function(d){
+      var fields = [row.doctor, d.date, WEEK[(d.weekday||1)-1], d.session,
+                    d.start||'', d.end||'', d.hours||0, (d.note||'').replace(/"/g,'""')];
+      lines.push(fields.map(function(x){
+        var s=String(x);
+        return /[,"\n]/.test(s) ? '"'+s+'"' : s;
+      }).join(','));
+    });
+  });
+  // 醫師總計
+  lines.push('');
+  lines.push('醫師,工作天數,總時數');
+  r.rows.forEach(function(row){
+    lines.push(row.doctor+','+row.days+','+row.totalHours);
+  });
+  var bom = '﻿';
+  var blob = new Blob([bom + lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '工時報表-'+r.from+'_'+r.to+'.csv';
+  a.click();
 }
 
 /* ===================== 例外 ===================== */
