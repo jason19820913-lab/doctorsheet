@@ -29,17 +29,23 @@
   --theme-border:#d6e2da;
   --theme-cell-border:#e3ece5;
   --theme-divider:#d6e0da;
+  /* 角落渲染色（明顯一點才看得出主題感）*/
+  --theme-glow:rgba(93,138,107,.42);          /* 健保=綠 #5d8a6b @42% */
+  --theme-glow-soft:rgba(93,138,107,.22);
 }
-/* 減重門診 = 棕色系 */
+/* 減重門診 = 咖啡色系 */
 body.theme-減重門診{
   --theme:#9b7e5a;
   --theme-d:#7a6244;
   --theme-l:#f3ede1;
-  --theme-bg-from:#ffffff;
+  --theme-bg-from:#fdfaf3;
   --theme-bg-to:#f0e7d6;
   --theme-border:#d6c8a8;
   --theme-cell-border:#ebe3d2;
   --theme-divider:#d8cdb5;
+  /* 角落渲染色（咖啡色帶透明）*/
+  --theme-glow:rgba(155,126,90,.42);           /* 咖啡 #9b7e5a @42% */
+  --theme-glow-soft:rgba(155,126,90,.22);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
@@ -90,9 +96,10 @@ header .who{font-size:13px;opacity:.95}
 /* Schedule grid */
 .schedule-wrap{padding:14px}
 .print-frame{
+  /* 雙角落主題色渲染：右上強、左下柔 */
   background:
-    radial-gradient(ellipse 75% 55% at 110% -10%, var(--theme-bg-to) 0%, transparent 70%),
-    radial-gradient(ellipse 70% 50% at -10% 110%, var(--theme-bg-to) 0%, transparent 70%),
+    radial-gradient(ellipse 78% 58% at 108% -8%,  var(--theme-glow)      0%, transparent 65%),
+    radial-gradient(ellipse 65% 50% at -8% 108%,  var(--theme-glow-soft) 0%, transparent 65%),
     var(--theme-bg-from);
   border-radius:14px;padding:22px 24px 26px 24px;box-shadow:var(--shadow);border:1px solid var(--theme-border);
   transition:background .3s, border-color .3s;
