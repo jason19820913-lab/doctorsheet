@@ -387,8 +387,8 @@ body.exporting .slot{cursor:default !important}
 
 <script>
 /* ===================== 設定 ===================== */
-// ⚠️ 請填入部署後的 Apps Script Web App 網址
-var API = 'PUT_YOUR_APPS_SCRIPT_URL_HERE';
+// Apps Script Web App 網址
+var API = 'https://script.google.com/macros/s/AKfycbxCI-WT385nZMkrnWrEJdDibS7O0DZw30vpmhF_lCAvbHpbG_JVT7Jl9YoS6bcQ-pjdng/exec';
 
 /* ===================== 狀態 ===================== */
 var STATE = {
@@ -417,12 +417,40 @@ function toast(msg, type){
   setTimeout(function(){ t.className='toast '+(type||''); }, 2400);
 }
 function get(params, cb){
+  // 預先檢查 API 設定
+  if (!API || API.indexOf('PUT_YOUR_APPS_SCRIPT_URL') >= 0){
+    var msg = '⚠️ 請先在 index.html 第 56 行附近把 var API 換成您部署的 Apps Script /exec 網址';
+    toast(msg, 'err'); cb({error: msg}); return;
+  }
+  if (API.indexOf('/exec') < 0){
+    var msg2 = '⚠️ API 網址必須以 /exec 結尾（不是 /dev）';
+    toast(msg2, 'err'); cb({error: msg2}); return;
+  }
   var q = Object.keys(params).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]==null?'':params[k]);
   }).join('&');
   fetch(API+'?'+q)
-    .then(function(r){ return r.json(); })
-    .then(function(j){ cb(j); })
+    .then(function(r){ return r.text().then(function(t){ return {status:r.status, text:t}; }); })
+    .then(function(res){
+      var t = res.text || '';
+      // 如果回傳是 HTML（不是 JSON），給出具體建議
+      if (t.charAt(0) === '<' || t.indexOf('<!DOCTYPE') >= 0 || t.indexOf('<html') >= 0){
+        var hint;
+        if (t.indexOf('accounts.google.com') >= 0 || t.indexOf('ServiceLogin') >= 0){
+          hint = 'Apps Script 部署的「有權存取的人」要設為「任何人」。\n\n修法：\n部署 → 管理部署 → 鉛筆 → 「有權存取的人」→ 任何人 → 部署';
+        } else if (t.indexOf('Authorization') >= 0 || t.indexOf('授權') >= 0){
+          hint = 'Apps Script 尚未授權存取 Sheets。\n\n修法：在編輯器內直接執行一次 setup 或 validateConfig 來觸發授權，然後重新部署';
+        } else {
+          hint = 'API 網址可能錯誤，或 Apps Script 部署有問題。\n\n請：\n1. 把 API 網址貼到瀏覽器，後面加 ?action=ping，應該看到 {"ok":true,...}\n2. 若看到登入頁 → 部署權限不對\n3. 若看到錯誤頁 → 部署網址錯誤';
+        }
+        toast('API 回傳了 HTML 不是 JSON', 'err');
+        console.error('=== API 錯誤 ===\n', hint, '\n\nAPI URL:', API, '\n\n回傳內容前 500 字:\n', t.slice(0, 500));
+        cb({error:'API 回傳 HTML：請按 F12 看 Console 檢視診斷'});
+        return;
+      }
+      try { cb(JSON.parse(t)); }
+      catch (e) { toast('回傳格式錯誤：'+e.message, 'err'); cb({error:String(e)}); }
+    })
     .catch(function(e){ toast('連線失敗：'+e, 'err'); cb({error:String(e)}); });
 }
 function todayStr(){
