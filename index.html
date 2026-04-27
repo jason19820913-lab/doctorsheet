@@ -287,6 +287,12 @@ body.exporting .slot{cursor:default !important}
   <div class="toolbar">
     <span class="pill">薪資工時計算</span>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+      院區
+      <select id="hours-clinic" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;min-width:120px">
+        <option value="all">全部院區</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px">
       門診類型
       <select id="hours-service" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
         <option value="">全部合併</option>
@@ -579,6 +585,7 @@ function bindEvents(){
   $('clinic-sel').addEventListener('change', function(){
     STATE.clinic = this.value;
     try { localStorage.setItem('schedule_clinic', this.value); } catch(e){}
+    refreshTitle();
     loadAll();
   });
   // 參考日期 — 換週要重新撈資料
@@ -620,6 +627,9 @@ function bindEvents(){
   $('btn-hours-last-month').addEventListener('click', function(){ setHoursDateRange('last'); loadHours(); });
   $('btn-hours-csv').addEventListener('click', exportHoursCSV);
   $('hours-service').addEventListener('change', function(){
+    if ($('hours-from').value && $('hours-to').value) loadHours();
+  });
+  $('hours-clinic').addEventListener('change', function(){
     if ($('hours-from').value && $('hours-to').value) loadHours();
   });
   // Slot 起訖時間變動 → 即時計算時數
@@ -738,6 +748,8 @@ function loadInit(){
     fillDoctorSelects();
     applyTheme();
     renderServiceTabs();
+    refreshTitle();
+    fillHoursClinicSel();
     loadAll();
   });
 }
@@ -757,6 +769,7 @@ function renderServiceTabs(){
       try { localStorage.setItem('schedule_service', svc); } catch(e){}
       applyTheme();
       renderServiceTabs();
+      refreshTitle();
       loadAll();
     });
     box.appendChild(b);
@@ -1090,14 +1103,28 @@ function setHoursDateRange(which){
   $('hours-from').value = first.getFullYear()+'-'+pad(first.getMonth()+1)+'-'+pad(first.getDate());
   $('hours-to').value   = last.getFullYear() +'-'+pad(last.getMonth()+1) +'-'+pad(last.getDate());
 }
+function fillHoursClinicSel(){
+  var sel = $('hours-clinic'); if (!sel) return;
+  // 清掉舊的（保留第一個「全部院區」）
+  while (sel.options.length > 1) sel.remove(1);
+  STATE.clinics.forEach(function(c){
+    var o = document.createElement('option');
+    o.value = c.code; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+  // 預設選「全部院區」
+  sel.value = 'all';
+}
+
 function loadHours(){
   var f=$('hours-from').value, t=$('hours-to').value;
   var svc = $('hours-service').value;
+  var cli = $('hours-clinic').value || 'all';
   if (!f || !t){ toast('請選擇期間','err'); return; }
   if (f > t){ toast('起日不可晚於迄日','err'); return; }
   $('hours-summary').innerHTML='<div style="text-align:center;color:var(--muted);padding:14px">查詢中...</div>';
   $('hours-table').innerHTML='';
-  get({action:'getHoursReport', clinic:STATE.clinic, service:svc, from:f, to:t}, function(r){
+  get({action:'getHoursReport', clinic:cli, service:svc, from:f, to:t}, function(r){
     if (r.error){
       $('hours-summary').innerHTML='<div style="color:var(--warn);padding:14px">'+r.error+'</div>';
       return;
@@ -1109,8 +1136,14 @@ function loadHours(){
 function renderHours(r){
   // 摘要
   var sum=$('hours-summary');
+  var clinicLabel = '全部院區';
+  if (r.clinic && r.clinic !== 'all'){
+    var cc = STATE.clinics.find(function(c){return c.code===r.clinic;});
+    clinicLabel = cc ? cc.name : r.clinic;
+  }
   sum.innerHTML = '<div class="hours-summary-pill">'+
     '<span>期間：<b>'+r.from+'</b> ~ <b>'+r.to+'</b></span>'+
+    '<span>院區：<b>'+clinicLabel+'</b></span>'+
     '<span>門診類型：<b>'+(r.service||'全部')+'</b></span>'+
     '<span>醫師人次：<b>'+r.rows.length+'</b></span>'+
     '<span>總時數：<b>'+r.grandTotal+'</b> 小時</span>'+
@@ -1129,11 +1162,19 @@ function renderHours(r){
       +'<span class="stat">出勤 '+row.days+' 天 · '+row.details.length+' 個時段</span>'
       +'<span class="total">'+row.totalHours+' <small>小時</small></span>'
       +'</div>';
-    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th><th>門診類型</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>備註</th></tr></thead><tbody>';
+    var showClinic = (r.clinic === 'all');
+    var clinicHead = showClinic ? '<th>院區</th>' : '';
+    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th>'+clinicHead+'<th>門診類型</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>備註</th></tr></thead><tbody>';
     row.details.forEach(function(d){
+      var clinicName = '';
+      if (showClinic){
+        var cc = STATE.clinics.find(function(c){return c.code===d.clinic;});
+        clinicName = cc ? cc.name : (d.clinic||'');
+      }
       rowsHtml += '<tr>'
         +'<td>'+d.date+'</td>'
         +'<td>'+WEEK[(d.weekday||1)-1]+'</td>'
+        +(showClinic ? '<td>'+clinicName+'</td>' : '')
         +'<td>'+(d.service||'')+'</td>'
         +'<td>'+d.session+'</td>'
         +'<td>'+(d.start||'')+'~'+(d.end||'')+'</td>'
@@ -1152,11 +1193,13 @@ function renderHours(r){
 function exportHoursCSV(){
   var r = STATE.hoursReport;
   if (!r || !r.rows || !r.rows.length){ toast('請先查詢','err'); return; }
-  var lines = ['醫師,日期,星期,門診類型,時段,起始,結束,時數,備註'];
+  var lines = ['醫師,日期,星期,院區,門診類型,時段,起始,結束,時數,備註'];
   r.rows.forEach(function(row){
     row.details.forEach(function(d){
+      var cc = STATE.clinics.find(function(c){return c.code===d.clinic;});
+      var clinicName = cc ? cc.name : (d.clinic||'');
       var fields = [row.doctor, d.date, WEEK[(d.weekday||1)-1],
-                    d.service||'', d.session,
+                    clinicName, d.service||'', d.session,
                     d.start||'', d.end||'', d.hours||0, (d.note||'').replace(/"/g,'""')];
       lines.push(fields.map(function(x){
         var s=String(x);
@@ -1337,16 +1380,45 @@ function exportPDF(){
   });
 }
 
-/* ===================== 標題持久化 ===================== */
+/* ===================== 標題持久化（依 院區+類型 各自記憶）===================== */
+function titleKey(){ return STATE.clinic + '|' + STATE.service; }
+
+function defaultTitle(){
+  var c = STATE.clinics.find(function(x){return x.code===STATE.clinic;});
+  var name = c ? c.name : STATE.clinic;
+  var short = String(name).replace(/院區$/, '');
+  return short + STATE.service;   // 例如「鶯歌健保門診」、「桃園減重門診」
+}
+
+function loadAllTitles(){
+  try { return JSON.parse(localStorage.getItem('schedule_print_titles')||'{}'); }
+  catch(e){ return {}; }
+}
+
+function saveTitleFor(key, text){
+  var all = loadAllTitles();
+  all[key] = text;
+  try{ localStorage.setItem('schedule_print_titles', JSON.stringify(all)); }catch(e){}
+}
+
+function refreshTitle(){
+  var t = $('print-title'); if (!t) return;
+  var all = loadAllTitles();
+  t.textContent = all[titleKey()] || defaultTitle();
+}
+
 function bindTitlePersist(){
-  var t = $('print-title');
-  if (!t) return;
+  var t = $('print-title'); if (!t) return;
+  // 一次性遷移：把舊版單一 key (schedule_print_title) 移到鶯歌健保下
   try{
-    var saved = localStorage.getItem('schedule_print_title');
-    if (saved) t.textContent = saved;
+    var legacy = localStorage.getItem('schedule_print_title');
+    if (legacy && !localStorage.getItem('schedule_print_titles')){
+      saveTitleFor('yingge|健保門診', legacy);
+      localStorage.removeItem('schedule_print_title');
+    }
   }catch(e){}
   t.addEventListener('input', function(){
-    try{ localStorage.setItem('schedule_print_title', t.textContent.trim()); }catch(e){}
+    saveTitleFor(titleKey(), t.textContent.trim());
   });
 }
 
