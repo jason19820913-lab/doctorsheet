@@ -9,6 +9,9 @@
   --green:#5d8a6b;
   --green-d:#4a7058;
   --green-l:#e6efe9;
+  --brown:#9b7e5a;
+  --brown-d:#7a6244;
+  --brown-l:#f3ede1;
   --bg:#f6f8f6;
   --line:#d9e1dc;
   --text:#2b3a31;
@@ -17,6 +20,26 @@
   --warn-bg:#fdecea;
   --tag:#e8ddc4;
   --shadow:0 2px 8px rgba(0,0,0,.06);
+  /* 主題色（預設：健保=綠）*/
+  --theme:var(--green);
+  --theme-d:var(--green-d);
+  --theme-l:var(--green-l);
+  --theme-bg-from:#ffffff;
+  --theme-bg-to:#eaf2ec;
+  --theme-border:#d6e2da;
+  --theme-cell-border:#e3ece5;
+  --theme-divider:#d6e0da;
+}
+/* 減重門診 = 棕色系 */
+body.theme-減重門診{
+  --theme:#9b7e5a;
+  --theme-d:#7a6244;
+  --theme-l:#f3ede1;
+  --theme-bg-from:#ffffff;
+  --theme-bg-to:#f0e7d6;
+  --theme-border:#d6c8a8;
+  --theme-cell-border:#ebe3d2;
+  --theme-divider:#d8cdb5;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
@@ -46,6 +69,14 @@ header .who{font-size:13px;opacity:.95}
   color:var(--muted);font-weight:500}
 .tabs button.active{color:var(--green-d);border-bottom-color:var(--green)}
 
+/* Service type switcher (健保 / 減重) */
+.svc-tabs{display:flex;gap:0;padding:8px 14px 0 14px;background:#fff;border-bottom:1px solid var(--line)}
+.svc-tabs button{background:transparent;border:1px solid var(--line);border-bottom:none;
+  padding:8px 18px;border-radius:8px 8px 0 0;color:var(--muted);font-weight:500;cursor:pointer;
+  margin-right:4px;font-size:14px;letter-spacing:1px}
+.svc-tabs button.active{background:var(--green);color:#fff;border-color:var(--green)}
+.svc-tabs button:hover:not(.active){background:var(--green-l);color:var(--green-d)}
+
 /* Toolbar */
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;align-items:center;background:#fff;border-bottom:1px solid var(--line)}
 .toolbar .grow{flex:1}
@@ -57,16 +88,17 @@ header .who{font-size:13px;opacity:.95}
 
 /* Schedule grid */
 .schedule-wrap{padding:14px}
-.print-frame{background:linear-gradient(135deg,#ffffff 0%,#eaf2ec 100%);
-  border-radius:14px;padding:22px 24px 26px 24px;box-shadow:var(--shadow);border:1px solid #d6e2da;}
+.print-frame{background:linear-gradient(135deg,var(--theme-bg-from) 0%,var(--theme-bg-to) 100%);
+  border-radius:14px;padding:22px 24px 26px 24px;box-shadow:var(--shadow);border:1px solid var(--theme-border);
+  transition:background .3s, border-color .3s;}
 .print-head{display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap}
 .print-head .brand{display:flex;align-items:center;gap:10px}
 .print-head .brand-logo{width:64px;height:64px;border-radius:50%;background:#f5f8f3;
-  display:flex;align-items:center;justify-content:center;border:2px solid #c8d8cd;
-  overflow:hidden;flex-shrink:0;}
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--theme-border);
+  overflow:hidden;flex-shrink:0;transition:border-color .3s;}
 .print-head .brand-logo svg{width:42px;height:42px}
 .print-head .brand-logo img{width:100%;height:100%;object-fit:cover;display:block}
-.print-head .brand-name{font-size:22px;font-weight:600;color:#3d5147;letter-spacing:2px}
+.print-head .brand-name{font-size:22px;font-weight:600;color:var(--theme-d);letter-spacing:2px;transition:color .3s}
 .print-head .title-wrap{flex:1;display:flex;justify-content:center;align-items:center}
 .print-head .title-text{font-size:26px;font-weight:600;color:#2b3a31;letter-spacing:3px;text-align:center;
   padding:4px 8px;border:1px dashed transparent;border-radius:6px;min-width:200px}
@@ -74,23 +106,26 @@ header .who{font-size:13px;opacity:.95}
 .schedule{background:transparent;border:none;border-radius:0;overflow:visible;
   display:grid;grid-template-columns:60px repeat(7,1fr);box-shadow:none;gap:6px;}
 .schedule .corner{background:transparent;}
-.schedule .head{background:var(--green);color:#fff;padding:12px 6px;text-align:center;font-weight:600;
-  letter-spacing:6px;font-size:16px;border-radius:2px;}
-.schedule .session-label{background:transparent;color:#3d5147;font-weight:600;
+.schedule .head{background:var(--theme);color:#fff;padding:12px 6px;text-align:center;font-weight:600;
+  letter-spacing:6px;font-size:16px;border-radius:2px;transition:background .3s;}
+.schedule .session-label{background:transparent;color:var(--theme-d);font-weight:600;
   display:flex;align-items:center;justify-content:center;
-  writing-mode:vertical-rl;letter-spacing:6px;font-size:15px;}
-.schedule .cell{background:rgba(255,255,255,.85);border:1px solid #e3ece5;border-radius:2px;
-  min-height:130px;padding:8px 4px;display:flex;gap:4px;flex-wrap:wrap;align-content:flex-start;justify-content:center;}
+  writing-mode:vertical-rl;letter-spacing:6px;font-size:15px;transition:color .3s;}
+.schedule .cell{background:rgba(255,255,255,.85);border:1px solid var(--theme-cell-border);border-radius:2px;
+  min-height:130px;padding:8px 4px;display:flex;gap:4px;flex-wrap:wrap;align-content:flex-start;justify-content:center;
+  transition:border-color .3s;}
 
 .slot{flex:1 1 calc(50% - 4px);min-width:0;background:transparent;border:none;border-radius:0;
   padding:10px 4px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
-  font-size:14px;cursor:pointer;transition:background .15s;border-right:1px dashed #d6e0da;}
+  font-size:14px;cursor:pointer;transition:background .15s;border-right:1px dashed var(--theme-divider);}
 .slot:last-child{border-right:none}
 .slot:only-child{flex-basis:100%;border-right:none}
-.slot .name{font-weight:600;color:#2b3a31;font-size:18px;letter-spacing:2px;line-height:1.2;margin-bottom:2px}
+.slot .name{font-weight:600;color:var(--text);font-size:18px;letter-spacing:2px;line-height:1.2;margin-bottom:2px}
 .slot .time-block{display:flex;flex-direction:column;align-items:center;gap:4px;
-  color:#3d5147;font-size:18px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1}
-.slot .tilde{color:#7a8a80;font-size:14px;line-height:1}
+  color:var(--theme-d);font-size:18px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1}
+.slot .tilde{color:var(--muted);font-size:14px;line-height:1}
+/* 休診（沒有任何排班的格子）*/
+.cell-empty{color:var(--muted);font-size:18px;letter-spacing:4px;display:flex;align-items:center;justify-content:center;width:100%;font-weight:500}
 .slot.exc-leave{background:#fff4f1;border-color:#f1c2b9}
 .slot.exc-sub{background:#fff8e1;border-color:#e6d49a}
 .slot.exc-cancel{background:#f0f0f0;border-color:#d0d0d0;text-decoration:line-through;color:var(--muted)}
@@ -208,13 +243,17 @@ body.exporting .slot{cursor:default !important}
 
 <!-- 班表頁 -->
 <section id="page-schedule">
+  <div class="svc-tabs" id="svc-tabs"><!-- 門診類型 sub-tabs --></div>
   <div class="toolbar">
     <span class="pill" id="schedule-info">本週班表 — 鶯歌院區</span>
     <span class="pill" id="exc-count" style="background:#fff4e0;color:#8c6d1f;display:none"></span>
     <div class="grow"></div>
+    <button class="btn" id="btn-prev-week" type="button" title="上一週">←&nbsp;上週</button>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-      參考日期 <input type="date" id="ref-date" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
+      <input type="date" id="ref-date" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
     </label>
+    <button class="btn" id="btn-next-week" type="button" title="下一週">下週&nbsp;→</button>
+    <button class="btn" id="btn-this-week" type="button" title="跳回本週">本週</button>
     <button class="btn" id="btn-refresh" type="button">重新整理</button>
     <button class="btn" id="btn-export-png" type="button">匯出 PNG</button>
     <button class="btn" id="btn-export-pdf" type="button">匯出 PDF</button>
@@ -246,6 +285,14 @@ body.exporting .slot{cursor:default !important}
 <section id="page-hours" class="hide">
   <div class="toolbar">
     <span class="pill">薪資工時計算</span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+      門診類型
+      <select id="hours-service" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
+        <option value="">全部合併</option>
+        <option value="健保門診">健保門診</option>
+        <option value="減重門診">減重門診</option>
+      </select>
+    </label>
     <div class="grow"></div>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px">
       期間 <input type="date" id="hours-from" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
@@ -306,6 +353,12 @@ body.exporting .slot{cursor:default !important}
           <select id="slot-session"><option>早診</option><option>午診</option><option>晚診</option></select>
         </label>
       </div>
+      <label>門診類型
+        <select id="slot-service">
+          <option value="健保門診">健保門診</option>
+          <option value="減重門診">減重門診</option>
+        </select>
+      </label>
       <label>醫師
         <select id="slot-doctor"></select>
       </label>
@@ -403,6 +456,8 @@ var STATE = {
   user: null,            // {name, role, clinic}
   clinic: 'yingge',
   clinics: [],
+  service: '健保門診',     // 門診類型：健保門診 / 減重門診
+  services: ['健保門診', '減重門診'],
   doctors: [],
   schedule: [],          // 排班記錄（按日期）
   exceptions: [],        // 例外記錄
@@ -528,6 +583,14 @@ function bindEvents(){
     STATE.refDate = this.value || todayStr();
     loadAll();
   });
+  // 上/下/本週 切換
+  $('btn-prev-week').addEventListener('click', function(){ gotoWeek(-1); });
+  $('btn-next-week').addEventListener('click', function(){ gotoWeek( 1); });
+  $('btn-this-week').addEventListener('click', function(){
+    STATE.refDate = todayStr();
+    $('ref-date').value = STATE.refDate;
+    loadAll();
+  });
   // 編輯模式
   $('btn-edit-mode').addEventListener('click', toggleEditMode);
   // 重新整理
@@ -553,6 +616,9 @@ function bindEvents(){
   $('btn-hours-this-month').addEventListener('click', function(){ setHoursDateRange('this'); loadHours(); });
   $('btn-hours-last-month').addEventListener('click', function(){ setHoursDateRange('last'); loadHours(); });
   $('btn-hours-csv').addEventListener('click', exportHoursCSV);
+  $('hours-service').addEventListener('change', function(){
+    if ($('hours-from').value && $('hours-to').value) loadHours();
+  });
   // Slot 起訖時間變動 → 即時計算時數
   ['slot-start','slot-end'].forEach(function(id){
     $(id).addEventListener('input', updateSlotHoursInfo);
@@ -646,6 +712,13 @@ function loadInit(){
     if (r.error){ toast('載入失敗：'+r.error,'err'); return; }
     STATE.clinics = r.clinics || [];
     STATE.doctors = r.doctors || [];
+    STATE.services = r.services || ['健保門診', '減重門診'];
+    if (r.defaultService) STATE.service = r.defaultService;
+    // 還原上次選的門診類型
+    try {
+      var lastSvc = localStorage.getItem('schedule_service');
+      if (lastSvc && STATE.services.indexOf(lastSvc) >= 0) STATE.service = lastSvc;
+    } catch(e){}
     // 院區下拉
     var sel = $('clinic-sel'); sel.innerHTML = '';
     STATE.clinics.forEach(function(c){
@@ -654,11 +727,50 @@ function loadInit(){
     if (STATE.clinics.length){
       STATE.clinic = STATE.clinics[0].code; sel.value = STATE.clinic;
     }
-    // 醫師下拉
     fillDoctorSelects();
-    // 載入班表 + 例外
+    applyTheme();
+    renderServiceTabs();
     loadAll();
   });
+}
+
+/* 門診類型切換 Tabs */
+function renderServiceTabs(){
+  var box = $('svc-tabs'); if (!box) return;
+  box.innerHTML = '';
+  STATE.services.forEach(function(svc){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = svc;
+    b.className = (svc === STATE.service) ? 'active' : '';
+    b.addEventListener('click', function(){
+      if (STATE.service === svc) return;
+      STATE.service = svc;
+      try { localStorage.setItem('schedule_service', svc); } catch(e){}
+      applyTheme();
+      renderServiceTabs();
+      loadAll();
+    });
+    box.appendChild(b);
+  });
+}
+
+/* 套用主題色（健保=綠、減重=棕）*/
+function applyTheme(){
+  document.body.classList.remove('theme-健保門診', 'theme-減重門診');
+  document.body.classList.add('theme-' + STATE.service);
+}
+
+/* 上/下一週切換 */
+function gotoWeek(delta){
+  var base = STATE.refDate || todayStr();
+  var d = new Date(base + 'T00:00:00');
+  if (isNaN(d.getTime())) d = new Date();
+  d.setDate(d.getDate() + delta * 7);
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  STATE.refDate = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  $('ref-date').value = STATE.refDate;
+  loadAll();
 }
 
 function fillDoctorSelects(){
@@ -682,11 +794,10 @@ function loadAll(){
 }
 
 function loadSchedule(){
-  // 撈取本週日期區間（週一~週日）
   var weekDates = weekRange(STATE.refDate || todayStr());
   var from = weekDates[0], to = weekDates[6];
   STATE.weekDates = weekDates;
-  get({action:'getSchedule', clinic:STATE.clinic, from:from, to:to}, function(r){
+  get({action:'getSchedule', clinic:STATE.clinic, service:STATE.service, from:from, to:to}, function(r){
     if (r.error){ toast('載入班表失敗：'+r.error,'err'); return; }
     STATE.schedule = r.rows || [];
     renderSchedule();
@@ -716,7 +827,7 @@ function renderSchedule(){
   // 院區名稱顯示
   var cName = (STATE.clinics.find(function(c){return c.code===STATE.clinic;}) || {}).name
               || (STATE.clinic === 'yingge' ? '鶯歌院區' : STATE.clinic);
-  $('schedule-info').textContent = '本週班表 — ' + cName;
+  $('schedule-info').textContent = '本週班表 — ' + cName + ' · ' + STATE.service;
 
   // 沒資料時顯示提示
   if (!STATE.schedule || !STATE.schedule.length){
@@ -789,6 +900,14 @@ function renderSchedule(){
         cell.appendChild(node);
       });
 
+      // 沒有任何排班 → 顯示「休診」（非編輯模式才顯示）
+      if (!items.length && !addItems.length && !STATE.editMode){
+        var empty = document.createElement('div');
+        empty.className = 'cell-empty';
+        empty.textContent = '休診';
+        cell.appendChild(empty);
+      }
+
       if (STATE.editMode){
         var btn=document.createElement('button'); btn.type='button'; btn.className='add-btn';
         btn.textContent='＋ 新增排班';
@@ -849,6 +968,7 @@ function openSlotModal(it, date, session){
   $('slot-end').value     = it ? it.end     : '';
   $('slot-sort').value    = it ? (it.sort||1) : 1;
   $('slot-note').value    = it ? (it.note||'') : '';
+  $('slot-service').value = it ? (it.service||STATE.service) : STATE.service;
   $('btn-slot-del').classList.toggle('hide', !it);
   updateSlotHoursInfo();
   show('mask-slot');
@@ -874,7 +994,8 @@ function saveSlot(){
     start:   $('slot-start').value,
     end:     $('slot-end').value,
     sort:    $('slot-sort').value || 1,
-    note:    $('slot-note').value || ''
+    note:    $('slot-note').value || '',
+    service: $('slot-service').value || STATE.service
   };
   if(!p.date){ toast('請選擇日期','err'); return; }
   if(!p.start || !p.end){ toast('請填寫起訖時間','err'); return; }
@@ -908,44 +1029,44 @@ function doApplyTemplate(){
   var month = $('apply-month').value;
   var mode  = $('apply-mode').value;
   if (!month){ toast('請選擇月份','err'); return; }
-  if (mode==='replace' && !confirm('「覆蓋」會先停用 '+month+' 該月所有現有排班，再依範本重寫。確定？')) return;
+  if (mode==='replace' && !confirm('「覆蓋」會先停用 '+month+' 該月「'+STATE.service+'」既有排班，再依範本重寫。確定？')) return;
   $('btn-do-apply').disabled = true;
-  get({action:'applyTemplate', clinic:STATE.clinic, month:month, mode:mode,
+  get({action:'applyTemplate', clinic:STATE.clinic, service:STATE.service, month:month, mode:mode,
        operator: STATE.user ? STATE.user.name : ''}, function(r){
     $('btn-do-apply').disabled = false;
     if (r.error){ toast(r.error,'err'); return; }
     hide('mask-apply');
-    toast('已新增 '+r.added+' 筆排班'+(r.cleared?'，停用 '+r.cleared+' 筆':''),'ok');
+    toast('['+STATE.service+'] 已新增 '+r.added+' 筆排班'+(r.cleared?'，停用 '+r.cleared+' 筆':''),'ok');
     loadSchedule();
   });
 }
 
-/* 「發布（本月）」— 用週範本覆蓋當月排班，避免重複資料 */
+/* 「發布（本月）」— 用週範本覆蓋當月排班 */
 function quickPublish(){
   if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
   var month = (STATE.refDate || todayStr()).slice(0,7);
-  if (!confirm('「發布」會：\n\n①  先停用 '+month+' 該月所有現有排班\n②  再依「週範本」展開到該月每一天\n\n確定發布？')) return;
+  if (!confirm('「發布」會（僅限「'+STATE.service+'」）：\n\n①  先停用 '+month+' 該月「'+STATE.service+'」既有排班\n②  再依「'+STATE.service+'」週範本展開到該月每一天\n\n（不會影響其他門診類型）\n\n確定發布？')) return;
   $('btn-publish').disabled = true;
-  get({action:'applyTemplate', clinic:STATE.clinic, month:month, mode:'replace',
+  get({action:'applyTemplate', clinic:STATE.clinic, service:STATE.service, month:month, mode:'replace',
        operator: STATE.user.name}, function(r){
     $('btn-publish').disabled = false;
     if (r.error){ toast(r.error,'err'); return; }
-    toast('✅ '+month+' 已發布：新增 '+(r.added||0)+'，覆蓋 '+(r.cleared||0)+' 筆','ok');
+    toast('✅ '+month+' ['+STATE.service+'] 已發布：新增 '+(r.added||0)+'，覆蓋 '+(r.cleared||0)+' 筆','ok');
     loadSchedule();
   });
 }
 
-/* 「一鍵清空（本月）」— 停用當月所有排班 */
+/* 「一鍵清空（本月）」— 停用當月該門診類型的排班 */
 function quickClearMonth(){
   if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
   var month = (STATE.refDate || todayStr()).slice(0,7);
-  if (!confirm('確定清空 '+month+' 全月的排班？\n\n所有當月排班會被停用（資料仍保留在 Sheet「排班記錄」工作表中，啟用欄改為 FALSE）。\n\n之後可以重新「發布」或「套用範本」。')) return;
+  if (!confirm('確定清空 '+month+' 全月「'+STATE.service+'」的排班？\n\n資料仍保留在 Sheet，啟用欄改為 FALSE（不會影響其他門診類型）。')) return;
   $('btn-clear-month').disabled = true;
-  get({action:'clearMonth', clinic:STATE.clinic, month:month,
+  get({action:'clearMonth', clinic:STATE.clinic, service:STATE.service, month:month,
        operator: STATE.user.name}, function(r){
     $('btn-clear-month').disabled = false;
     if (r.error){ toast(r.error,'err'); return; }
-    toast('已清空 '+month+'：'+(r.cleared||0)+' 筆','ok');
+    toast('['+STATE.service+'] 已清空 '+month+'：'+(r.cleared||0)+' 筆','ok');
     loadSchedule();
   });
 }
@@ -963,11 +1084,12 @@ function setHoursDateRange(which){
 }
 function loadHours(){
   var f=$('hours-from').value, t=$('hours-to').value;
+  var svc = $('hours-service').value;
   if (!f || !t){ toast('請選擇期間','err'); return; }
   if (f > t){ toast('起日不可晚於迄日','err'); return; }
   $('hours-summary').innerHTML='<div style="text-align:center;color:var(--muted);padding:14px">查詢中...</div>';
   $('hours-table').innerHTML='';
-  get({action:'getHoursReport', clinic:STATE.clinic, from:f, to:t}, function(r){
+  get({action:'getHoursReport', clinic:STATE.clinic, service:svc, from:f, to:t}, function(r){
     if (r.error){
       $('hours-summary').innerHTML='<div style="color:var(--warn);padding:14px">'+r.error+'</div>';
       return;
@@ -981,6 +1103,7 @@ function renderHours(r){
   var sum=$('hours-summary');
   sum.innerHTML = '<div class="hours-summary-pill">'+
     '<span>期間：<b>'+r.from+'</b> ~ <b>'+r.to+'</b></span>'+
+    '<span>門診類型：<b>'+(r.service||'全部')+'</b></span>'+
     '<span>醫師人次：<b>'+r.rows.length+'</b></span>'+
     '<span>總時數：<b>'+r.grandTotal+'</b> 小時</span>'+
     '</div>';
@@ -998,11 +1121,12 @@ function renderHours(r){
       +'<span class="stat">出勤 '+row.days+' 天 · '+row.details.length+' 個時段</span>'
       +'<span class="total">'+row.totalHours+' <small>小時</small></span>'
       +'</div>';
-    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>備註</th></tr></thead><tbody>';
+    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th><th>門診類型</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>備註</th></tr></thead><tbody>';
     row.details.forEach(function(d){
       rowsHtml += '<tr>'
         +'<td>'+d.date+'</td>'
         +'<td>'+WEEK[(d.weekday||1)-1]+'</td>'
+        +'<td>'+(d.service||'')+'</td>'
         +'<td>'+d.session+'</td>'
         +'<td>'+(d.start||'')+'~'+(d.end||'')+'</td>'
         +'<td style="text-align:right">'+(d.hours||0)+'</td>'
@@ -1020,10 +1144,11 @@ function renderHours(r){
 function exportHoursCSV(){
   var r = STATE.hoursReport;
   if (!r || !r.rows || !r.rows.length){ toast('請先查詢','err'); return; }
-  var lines = ['醫師,日期,星期,時段,起始,結束,時數,備註'];
+  var lines = ['醫師,日期,星期,門診類型,時段,起始,結束,時數,備註'];
   r.rows.forEach(function(row){
     row.details.forEach(function(d){
-      var fields = [row.doctor, d.date, WEEK[(d.weekday||1)-1], d.session,
+      var fields = [row.doctor, d.date, WEEK[(d.weekday||1)-1],
+                    d.service||'', d.session,
                     d.start||'', d.end||'', d.hours||0, (d.note||'').replace(/"/g,'""')];
       lines.push(fields.map(function(x){
         var s=String(x);
