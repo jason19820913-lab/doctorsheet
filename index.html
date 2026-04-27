@@ -410,8 +410,18 @@ var WEEK = ['星期一','星期二','星期三','星期四','星期五','星期�
 
 /* ===================== 共用 ===================== */
 function $(id){ return document.getElementById(id); }
-function show(el){ if(typeof el==='string') el=$(el); el && el.classList.remove('hide'); }
-function hide(el){ if(typeof el==='string') el=$(el); el && el.classList.add('hide'); }
+function show(el){
+  if(typeof el==='string') el=$(el);
+  if (!el) return;
+  el.classList.remove('hide');
+  if (el.classList.contains('mask')) el.classList.add('show'); // mask 用 .show 控制
+}
+function hide(el){
+  if(typeof el==='string') el=$(el);
+  if (!el) return;
+  if (el.classList.contains('mask')) { el.classList.remove('show'); return; }
+  el.classList.add('hide');
+}
 function toast(msg, type){
   var t=$('toast'); t.textContent=msg; t.className='toast show '+(type||'');
   setTimeout(function(){ t.className='toast '+(type||''); }, 2400);
