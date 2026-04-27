@@ -428,8 +428,9 @@ body.exporting .print-head .title-text{ font-size:30px; }
       <label>目標月份 <input id="apply-month" type="month" required></label>
       <label>套用模式
         <select id="apply-mode">
-          <option value="append">附加（保留現有排班）</option>
-          <option value="replace">覆蓋（先停用該月既有排班再寫入）</option>
+          <option value="smart">智能補齊（保留修改，只補空缺）— 推薦</option>
+          <option value="append">附加（保留現有，但同醫師會跳過避免重複）</option>
+          <option value="replace">完全覆蓋（先全部停用該月再寫入）— 砍掉重練</option>
         </select>
       </label>
     </div>
@@ -1072,36 +1073,42 @@ function openApplyModal(){
   if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
   var d = new Date(STATE.refDate || todayStr());
   $('apply-month').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-  $('apply-mode').value = 'append';
+  $('apply-mode').value = 'smart';
   show('mask-apply');
 }
 function doApplyTemplate(){
   var month = $('apply-month').value;
   var mode  = $('apply-mode').value;
   if (!month){ toast('請選擇月份','err'); return; }
-  if (mode==='replace' && !confirm('「覆蓋」會先停用 '+month+' 該月「'+STATE.service+'」既有排班，再依範本重寫。確定？')) return;
+  if (mode==='replace' && !confirm('「完全覆蓋」會先停用 '+month+' 該月「'+STATE.service+'」**所有**既有排班（包含您手動修改的），再依範本重寫。\n\n確定要砍掉重練嗎？')) return;
   $('btn-do-apply').disabled = true;
   get({action:'applyTemplate', clinic:STATE.clinic, service:STATE.service, month:month, mode:mode,
        operator: STATE.user ? STATE.user.name : ''}, function(r){
     $('btn-do-apply').disabled = false;
     if (r.error){ toast(r.error,'err'); return; }
     hide('mask-apply');
-    toast('['+STATE.service+'] 已新增 '+r.added+' 筆排班'+(r.cleared?'，停用 '+r.cleared+' 筆':''),'ok');
+    var parts = [];
+    if (r.added)    parts.push('新增 '+r.added+' 筆');
+    if (r.cleared)  parts.push('停用 '+r.cleared+' 筆');
+    if (r.preserved)parts.push('保留 '+r.preserved+' 筆既有修改');
+    toast('['+STATE.service+'] '+(parts.join('，') || '無變更'),'ok');
     loadSchedule();
   });
 }
 
-/* 「發布（本月）」— 用週範本覆蓋當月排班 */
+/* 「發布（本月）」— 智能補齊：保留已修改的排班，只對該月「沒有排班的時段」從週範本補齊 */
 function quickPublish(){
   if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
   var month = (STATE.refDate || todayStr()).slice(0,7);
-  if (!confirm('「發布」會（僅限「'+STATE.service+'」）：\n\n①  先停用 '+month+' 該月「'+STATE.service+'」既有排班\n②  再依「'+STATE.service+'」週範本展開到該月每一天\n\n（不會影響其他門診類型）\n\n確定發布？')) return;
+  if (!confirm('發布 '+month+' ['+STATE.service+']：\n\n①  保留所有「您已修改」的排班（不會覆蓋）\n②  對該月「還沒有排班」的時段，從週範本自動補齊\n③  所有新增的排班「啟用」欄會設為 TRUE\n\n（如要整月重來請改用「一鍵清空 → 套用週範本」）\n\n確定發布？')) return;
   $('btn-publish').disabled = true;
-  get({action:'applyTemplate', clinic:STATE.clinic, service:STATE.service, month:month, mode:'replace',
+  get({action:'applyTemplate', clinic:STATE.clinic, service:STATE.service, month:month, mode:'smart',
        operator: STATE.user.name}, function(r){
     $('btn-publish').disabled = false;
     if (r.error){ toast(r.error,'err'); return; }
-    toast('✅ '+month+' ['+STATE.service+'] 已發布：新增 '+(r.added||0)+'，覆蓋 '+(r.cleared||0)+' 筆','ok');
+    var msg = '✅ '+month+' ['+STATE.service+'] 已發布：新增 '+(r.added||0)+' 筆';
+    if (r.preserved) msg += '，保留 '+r.preserved+' 筆既有修改';
+    toast(msg,'ok');
     loadSchedule();
   });
 }
