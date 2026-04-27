@@ -60,7 +60,8 @@ header h1 .logo.logo-fallback::before{content:'鶯';font-size:16px}
 header .grow{flex:1}
 header select,header button{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.4);
   background:rgba(255,255,255,.12);color:#fff}
-header select option{color:#000}
+header select{min-width:120px;font-weight:500}
+header select option{color:#000;background:#fff}
 header .who{font-size:13px;opacity:.95}
 
 /* Tabs */
@@ -576,7 +577,9 @@ function bindEvents(){
   });
   // 院區切換
   $('clinic-sel').addEventListener('change', function(){
-    STATE.clinic = this.value; loadAll();
+    STATE.clinic = this.value;
+    try { localStorage.setItem('schedule_clinic', this.value); } catch(e){}
+    loadAll();
   });
   // 參考日期 — 換週要重新撈資料
   $('ref-date').addEventListener('change', function(){
@@ -725,7 +728,12 @@ function loadInit(){
       var o=document.createElement('option'); o.value=c.code; o.textContent=c.name; sel.appendChild(o);
     });
     if (STATE.clinics.length){
-      STATE.clinic = STATE.clinics[0].code; sel.value = STATE.clinic;
+      // 還原上次選的院區
+      var lastClinic = '';
+      try { lastClinic = localStorage.getItem('schedule_clinic') || ''; } catch(e){}
+      var validClinic = STATE.clinics.find(function(c){ return c.code === lastClinic; });
+      STATE.clinic = validClinic ? lastClinic : STATE.clinics[0].code;
+      sel.value = STATE.clinic;
     }
     fillDoctorSelects();
     applyTheme();
