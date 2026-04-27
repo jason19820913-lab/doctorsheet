@@ -89,9 +89,14 @@ header .who{font-size:13px;opacity:.95}
 
 /* Schedule grid */
 .schedule-wrap{padding:14px}
-.print-frame{background:linear-gradient(135deg,var(--theme-bg-from) 0%,var(--theme-bg-to) 100%);
+.print-frame{
+  background:
+    radial-gradient(ellipse 75% 55% at 110% -10%, var(--theme-bg-to) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 50% at -10% 110%, var(--theme-bg-to) 0%, transparent 70%),
+    var(--theme-bg-from);
   border-radius:14px;padding:22px 24px 26px 24px;box-shadow:var(--shadow);border:1px solid var(--theme-border);
-  transition:background .3s, border-color .3s;}
+  transition:background .3s, border-color .3s;
+}
 .print-head{display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap}
 .print-head .brand{display:flex;align-items:center;gap:10px}
 .print-head .brand-logo{width:64px;height:64px;border-radius:50%;background:#f5f8f3;
@@ -105,13 +110,13 @@ header .who{font-size:13px;opacity:.95}
   padding:4px 8px;border:1px dashed transparent;border-radius:6px;min-width:200px}
 .print-head .title-text:focus{outline:none;border-color:var(--green);background:#fff}
 .schedule{background:transparent;border:none;border-radius:0;overflow:visible;
-  display:grid;grid-template-columns:60px repeat(7,1fr);box-shadow:none;gap:6px;}
+  display:grid;grid-template-columns:72px repeat(7,1fr);box-shadow:none;gap:6px;}
 .schedule .corner{background:transparent;}
 .schedule .head{background:var(--theme);color:#fff;padding:12px 6px;text-align:center;font-weight:600;
   letter-spacing:6px;font-size:16px;border-radius:2px;transition:background .3s;}
 .schedule .session-label{background:transparent;color:var(--theme-d);font-weight:600;
   display:flex;align-items:center;justify-content:center;
-  writing-mode:vertical-rl;letter-spacing:6px;font-size:15px;transition:color .3s;}
+  writing-mode:vertical-rl;letter-spacing:8px;font-size:22px;transition:color .3s;}
 .schedule .cell{background:rgba(255,255,255,.85);border:1px solid var(--theme-cell-border);border-radius:2px;
   min-height:130px;padding:8px 4px;display:flex;gap:4px;flex-wrap:wrap;align-content:flex-start;justify-content:center;
   transition:border-color .3s;}
@@ -202,21 +207,38 @@ header .who{font-size:13px;opacity:.95}
 /* Responsive */
 @media (max-width:760px){
   header h1{font-size:16px}
-  .schedule{grid-template-columns:42px repeat(7,minmax(70px,1fr));overflow:auto}
+  .schedule{grid-template-columns:50px repeat(7,minmax(70px,1fr));overflow:auto}
   .schedule-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .schedule .cell{min-height:90px}
   .slot{font-size:12px;padding:4px 2px}
   .slot .time{font-size:11px}
   .toolbar{padding:8px 10px}
-  .schedule .session-label{letter-spacing:2px}
+  .schedule .session-label{letter-spacing:4px;font-size:18px}
 }
 
 .hide{display:none !important}
 
-/* 匯出時的版面（隱藏編輯互動元素，標題去掉框線）*/
+/* 匯出時的版面（隱藏編輯互動元素，標題去掉框線、固定 A4 橫式比例）*/
 body.exporting .add-btn{display:none !important}
 body.exporting .print-head .title-text{border-color:transparent !important;background:transparent !important}
 body.exporting .slot{cursor:default !important}
+/* A4 橫式 = 297:210 ≈ 1.414:1。寬 1240px → 高 ~877px。整體含 padding 與 head ~880-920px */
+body.exporting .print-frame{
+  width:1240px !important;
+  min-height:880px !important;
+  padding:28px 32px 32px 32px !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+body.exporting .print-frame > .schedule{ flex:1 1 auto; }
+body.exporting .schedule .head{ font-size:20px; padding:16px 6px; letter-spacing:8px; }
+body.exporting .schedule .session-label{ font-size:26px; letter-spacing:10px; }
+body.exporting .schedule .cell{ min-height:0; }   /* 由 flex 撐開 */
+body.exporting .slot .name{ font-size:20px; }
+body.exporting .slot .time-block{ font-size:20px; }
+body.exporting .print-head .brand-name{ font-size:26px; }
+body.exporting .print-head .title-text{ font-size:30px; }
 </style>
 </head>
 <body>
@@ -1334,47 +1356,68 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
 }); }
 
-/* ===================== 匯出 ===================== */
+/* ===================== 匯出（A4 橫式：29.7×21cm）===================== */
 function captureNode(){ return document.getElementById('print-frame'); }
 function captureFilename(ext){
   var name = (STATE.clinics.find(function(c){return c.code===STATE.clinic;})||{}).name || STATE.clinic;
-  return '班表-'+name+'-'+todayStr()+'.'+ext;
+  return '班表-'+name+'-'+STATE.service+'-'+todayStr()+'.'+ext;
 }
 function withCaptureMode(cb){
-  // 匯出時暫時隱藏 contenteditable 邊框、抽掉 ＋新增 按鈕
   document.body.classList.add('exporting');
+  // 等樣式套用後再截圖
   setTimeout(function(){
     cb(function(){ document.body.classList.remove('exporting'); });
-  }, 50);
+  }, 100);
 }
+
+// html2canvas 共用設定（高解析度、A4 比例、保留漸層）
+function captureOptions(node){
+  return {
+    scale: 2.5,                       // 1240×880 × 2.5 ≈ 3100×2200，接近 A4@200dpi
+    backgroundColor: null,            // 透明，讓 print-frame 自身漸層完整呈現
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    width:  node.offsetWidth,
+    height: node.offsetHeight,
+    windowWidth:  Math.max(1280, document.documentElement.clientWidth),
+    windowHeight: Math.max(900,  document.documentElement.clientHeight)
+  };
+}
+
 function exportPNG(){
   var node = captureNode();
   if (!node || !window.html2canvas){ toast('匯出工具尚未載入','err'); return; }
   toast('產生 PNG 中…','ok');
   withCaptureMode(function(done){
-    html2canvas(node, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas){
+    html2canvas(node, captureOptions(node)).then(function(canvas){
       done();
+      // 縮放到 A4@200DPI 標準大小（2339×1654），保證精準的 A4 橫式
+      var a4 = document.createElement('canvas');
+      a4.width = 2339; a4.height = 1654;
+      var ctx = a4.getContext('2d');
+      // 白色底（避免 transparent 被某些檢視器視為黑）
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, a4.width, a4.height);
+      ctx.drawImage(canvas, 0, 0, a4.width, a4.height);
       var a=document.createElement('a');
-      a.href=canvas.toDataURL('image/png');
+      a.href=a4.toDataURL('image/png');
       a.download=captureFilename('png');
       a.click();
     }).catch(function(e){ done(); toast('匯出失敗：'+e,'err'); });
   });
 }
+
 function exportPDF(){
   var node = captureNode();
   if (!node || !window.html2canvas || !window.jspdf){ toast('匯出工具尚未載入','err'); return; }
   toast('產生 PDF 中…','ok');
   withCaptureMode(function(done){
-    html2canvas(node, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas){
+    html2canvas(node, captureOptions(node)).then(function(canvas){
       done();
       var imgData = canvas.toDataURL('image/png');
-      var pdf = new window.jspdf.jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
-      var pw = pdf.internal.pageSize.getWidth();
-      var ph = pdf.internal.pageSize.getHeight();
-      var ratio = Math.min((pw-40)/canvas.width, (ph-40)/canvas.height);
-      var w = canvas.width*ratio, h = canvas.height*ratio;
-      pdf.addImage(imgData, 'PNG', (pw-w)/2, (ph-h)/2, w, h);
+      // 直接產生 A4 橫式，圖片填滿整頁（無邊距），最完美的 A4 輸出
+      var pdf = new window.jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+      pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
       pdf.save(captureFilename('pdf'));
     }).catch(function(e){ done(); toast('匯出失敗：'+e,'err'); });
   });
