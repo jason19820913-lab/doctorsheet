@@ -29,8 +29,11 @@ input,select,textarea{font:inherit}
 header{background:var(--green);color:#fff;padding:10px 14px;display:flex;align-items:center;
   flex-wrap:wrap;gap:10px;box-shadow:var(--shadow);}
 header h1{font-size:18px;margin:0;font-weight:600;display:flex;align-items:center;gap:8px}
-header h1 .logo{display:inline-flex;width:28px;height:28px;border-radius:50%;background:#fff;
-  align-items:center;justify-content:center;color:var(--green);font-weight:700;}
+header h1 .logo{display:inline-flex;width:32px;height:32px;border-radius:50%;background:#fff;
+  align-items:center;justify-content:center;color:var(--green);font-weight:700;overflow:hidden;flex-shrink:0;}
+header h1 .logo img{width:100%;height:100%;object-fit:cover;display:block}
+/* logo.png 載入失敗時的後備：顯示「鶯」字 */
+header h1 .logo.logo-fallback::before{content:'鶯';font-size:16px}
 header .grow{flex:1}
 header select,header button{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.4);
   background:rgba(255,255,255,.12);color:#fff}
@@ -58,9 +61,11 @@ header .who{font-size:13px;opacity:.95}
   border-radius:14px;padding:22px 24px 26px 24px;box-shadow:var(--shadow);border:1px solid #d6e2da;}
 .print-head{display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap}
 .print-head .brand{display:flex;align-items:center;gap:10px}
-.print-head .brand-logo{width:54px;height:54px;border-radius:50%;background:#f5f8f3;
-  display:flex;align-items:center;justify-content:center;border:2px solid #c8d8cd;}
-.print-head .brand-logo svg{width:38px;height:38px}
+.print-head .brand-logo{width:64px;height:64px;border-radius:50%;background:#f5f8f3;
+  display:flex;align-items:center;justify-content:center;border:2px solid #c8d8cd;
+  overflow:hidden;flex-shrink:0;}
+.print-head .brand-logo svg{width:42px;height:42px}
+.print-head .brand-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .print-head .brand-name{font-size:22px;font-weight:600;color:#3d5147;letter-spacing:2px}
 .print-head .title-wrap{flex:1;display:flex;justify-content:center;align-items:center}
 .print-head .title-text{font-size:26px;font-weight:600;color:#2b3a31;letter-spacing:3px;text-align:center;
@@ -78,12 +83,14 @@ header .who{font-size:13px;opacity:.95}
   min-height:130px;padding:8px 4px;display:flex;gap:4px;flex-wrap:wrap;align-content:flex-start;justify-content:center;}
 
 .slot{flex:1 1 calc(50% - 4px);min-width:0;background:transparent;border:none;border-radius:0;
-  padding:8px 4px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;
+  padding:10px 4px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
   font-size:14px;cursor:pointer;transition:background .15s;border-right:1px dashed #d6e0da;}
 .slot:last-child{border-right:none}
 .slot:only-child{flex-basis:100%;border-right:none}
-.slot .name{font-weight:600;color:#2b3a31;font-size:17px;letter-spacing:1px}
-.slot .time{color:#3d5147;font-size:14px;white-space:nowrap;font-weight:500;font-variant-numeric:tabular-nums}
+.slot .name{font-weight:600;color:#2b3a31;font-size:18px;letter-spacing:2px;line-height:1.2;margin-bottom:2px}
+.slot .time-block{display:flex;flex-direction:column;align-items:center;gap:4px;
+  color:#3d5147;font-size:18px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1}
+.slot .tilde{color:#7a8a80;font-size:14px;line-height:1}
 .slot.exc-leave{background:#fff4f1;border-color:#f1c2b9}
 .slot.exc-sub{background:#fff8e1;border-color:#e6d49a}
 .slot.exc-cancel{background:#f0f0f0;border-color:#d0d0d0;text-decoration:line-through;color:var(--muted)}
@@ -179,7 +186,12 @@ body.exporting .slot{cursor:default !important}
 <body>
 
 <header>
-  <h1><span class="logo">鶯</span> 金鶯診所 班表系統</h1>
+  <h1>
+    <span class="logo">
+      <img src="logo.png" alt="金鶯" onerror="this.style.display='none';this.parentNode.classList.add('logo-fallback');">
+    </span>
+    金鶯診所 班表系統
+  </h1>
   <div class="grow"></div>
   <select id="clinic-sel" title="院區"></select>
   <span class="who" id="who">未登入</span>
@@ -207,6 +219,8 @@ body.exporting .slot{cursor:default !important}
     <button class="btn" id="btn-export-png" type="button">匯出 PNG</button>
     <button class="btn" id="btn-export-pdf" type="button">匯出 PDF</button>
     <button class="btn hide" id="btn-apply-tpl" type="button">套用週範本到月份</button>
+    <button class="btn hide" id="btn-publish" type="button" style="background:var(--green);color:#fff;border-color:var(--green)">發布（本月）</button>
+    <button class="btn warn hide" id="btn-clear-month" type="button">一鍵清空（本月）</button>
     <button class="btn primary hide" id="btn-edit-mode" type="button">進入編輯模式</button>
   </div>
   <div class="schedule-wrap">
@@ -214,14 +228,8 @@ body.exporting .slot{cursor:default !important}
       <div class="print-head">
         <div class="brand">
           <div class="brand-logo" aria-hidden="true">
-            <!-- Elite Clinic 風格的鳥+葉子 logo -->
-            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-              <g fill="#5d8a6b">
-                <path d="M14 38c0-8 6-14 14-14 6 0 11 4 13 9 1 2 3 4 5 4l4 1c1 0 1 1 0 2-3 3-9 6-15 6-3 0-6-1-8-2-2 4-7 6-12 6-2 0-3-1-3-3 0-2 1-4 2-5 0-1 0-2 0-4z"/>
-                <circle cx="42" cy="32" r="2" fill="#fff"/>
-                <path d="M44 21c2-4 6-7 11-8 1 0 2 1 1 2-2 4-5 7-9 9-2 1-3 0-3-3z"/>
-              </g>
-            </svg>
+            <img src="logo.png" alt="金鶯診所" crossorigin="anonymous"
+                 onerror="this.outerHTML='<svg viewBox=&quot;0 0 64 64&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;><g fill=&quot;#5d8a6b&quot;><path d=&quot;M14 38c0-8 6-14 14-14 6 0 11 4 13 9 1 2 3 4 5 4l4 1c1 0 1 1 0 2-3 3-9 6-15 6-3 0-6-1-8-2-2 4-7 6-12 6-2 0-3-1-3-3 0-2 1-4 2-5 0-1 0-2 0-4z&quot;/><circle cx=&quot;42&quot; cy=&quot;32&quot; r=&quot;2&quot; fill=&quot;#fff&quot;/><path d=&quot;M44 21c2-4 6-7 11-8 1 0 2 1 1 2-2 4-5 7-9 9-2 1-3 0-3-3z&quot;/></g></svg>'">
           </div>
           <div class="brand-name">金鶯診所</div>
         </div>
@@ -535,9 +543,11 @@ function bindEvents(){
   $('login-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   // 例外新增
   $('btn-add-exc').addEventListener('click', function(){ openExcModal(null); });
-  // 套用週範本
+  // 套用週範本 / 發布 / 一鍵清空
   $('btn-apply-tpl').addEventListener('click', openApplyModal);
   $('btn-do-apply').addEventListener('click', doApplyTemplate);
+  $('btn-publish').addEventListener('click', quickPublish);
+  $('btn-clear-month').addEventListener('click', quickClearMonth);
   // 工時報表
   $('btn-hours-load').addEventListener('click', loadHours);
   $('btn-hours-this-month').addEventListener('click', function(){ setHoursDateRange('this'); loadHours(); });
@@ -586,13 +596,16 @@ function applyAuthUI(){
     hide('btn-login'); show('btn-logout');
     if (STATE.user.role==='admin'){
       show('btn-edit-mode'); show('btn-add-exc'); show('btn-apply-tpl');
+      show('btn-publish'); show('btn-clear-month');
     } else {
       hide('btn-edit-mode'); hide('btn-add-exc'); hide('btn-apply-tpl');
+      hide('btn-publish'); hide('btn-clear-month');
     }
   } else {
     $('who').textContent = '未登入';
     show('btn-login'); hide('btn-logout');
     hide('btn-edit-mode'); hide('btn-add-exc'); hide('btn-apply-tpl');
+    hide('btn-publish'); hide('btn-clear-month');
     STATE.editMode = false;
     document.body.classList.remove('edit-on');
   }
@@ -789,10 +802,17 @@ function renderSchedule(){
   }
 }
 
+function timeBlock(start, end){
+  return '<div class="time-block">'
+       +   '<div>'+(start||'')+'</div>'
+       +   '<div class="tilde">~</div>'
+       +   '<div>'+(end||'')+'</div>'
+       + '</div>';
+}
 function makeSlot(it, exc){
   var div=document.createElement('div'); div.className='slot';
   var name = it.doctor;
-  var time = it.start+'~'+it.end;
+  var s = it.start, e = it.end;
   var tag = '';
   if (exc){
     if (exc.type==='請假'){ div.classList.add('exc-leave'); tag='<div class="tag">請假</div>'; }
@@ -800,10 +820,10 @@ function makeSlot(it, exc){
     else if (exc.type==='代班' && exc.subDoctor){
       div.classList.add('exc-sub');
       name = exc.subDoctor + '<div class="tag">代 '+it.doctor+'</div>';
-      if (exc.start && exc.end) time = exc.start+'~'+exc.end;
+      if (exc.start && exc.end) { s = exc.start; e = exc.end; }
     }
   }
-  div.innerHTML = '<div class="name">'+name+'</div><div class="time">'+time+'</div>'+tag;
+  div.innerHTML = '<div class="name">'+name+'</div>'+timeBlock(s, e)+tag;
   if (STATE.editMode){
     div.classList.add('editable');
     div.addEventListener('click', function(){ openSlotModal(it); });
@@ -813,8 +833,7 @@ function makeSlot(it, exc){
 function makeExcOnlySlot(e){
   var div=document.createElement('div'); div.className='slot exc-sub';
   var name = (e.subDoctor||e.origDoctor||'加診') + '<div class="tag">加診</div>';
-  var time = (e.start||'')+'~'+(e.end||'');
-  div.innerHTML = '<div class="name">'+name+'</div><div class="time">'+time+'</div>';
+  div.innerHTML = '<div class="name">'+name+'</div>'+timeBlock(e.start, e.end);
   return div;
 }
 
@@ -897,6 +916,36 @@ function doApplyTemplate(){
     if (r.error){ toast(r.error,'err'); return; }
     hide('mask-apply');
     toast('已新增 '+r.added+' 筆排班'+(r.cleared?'，停用 '+r.cleared+' 筆':''),'ok');
+    loadSchedule();
+  });
+}
+
+/* 「發布（本月）」— 用週範本覆蓋當月排班，避免重複資料 */
+function quickPublish(){
+  if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
+  var month = (STATE.refDate || todayStr()).slice(0,7);
+  if (!confirm('「發布」會：\n\n①  先停用 '+month+' 該月所有現有排班\n②  再依「週範本」展開到該月每一天\n\n確定發布？')) return;
+  $('btn-publish').disabled = true;
+  get({action:'applyTemplate', clinic:STATE.clinic, month:month, mode:'replace',
+       operator: STATE.user.name}, function(r){
+    $('btn-publish').disabled = false;
+    if (r.error){ toast(r.error,'err'); return; }
+    toast('✅ '+month+' 已發布：新增 '+(r.added||0)+'，覆蓋 '+(r.cleared||0)+' 筆','ok');
+    loadSchedule();
+  });
+}
+
+/* 「一鍵清空（本月）」— 停用當月所有排班 */
+function quickClearMonth(){
+  if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
+  var month = (STATE.refDate || todayStr()).slice(0,7);
+  if (!confirm('確定清空 '+month+' 全月的排班？\n\n所有當月排班會被停用（資料仍保留在 Sheet「排班記錄」工作表中，啟用欄改為 FALSE）。\n\n之後可以重新「發布」或「套用範本」。')) return;
+  $('btn-clear-month').disabled = true;
+  get({action:'clearMonth', clinic:STATE.clinic, month:month,
+       operator: STATE.user.name}, function(r){
+    $('btn-clear-month').disabled = false;
+    if (r.error){ toast(r.error,'err'); return; }
+    toast('已清空 '+month+'：'+(r.cleared||0)+' 筆','ok');
     loadSchedule();
   });
 }
