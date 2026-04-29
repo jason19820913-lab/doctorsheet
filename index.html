@@ -200,6 +200,19 @@ header .who{font-size:13px;opacity:.95}
 .hours-summary-pill{background:var(--green-l);color:var(--green-d);border-radius:8px;padding:10px 14px;
   display:flex;gap:18px;align-items:center;font-size:14px;flex-wrap:wrap}
 
+/* 工時報表狀態標籤 */
+.status-tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;
+  margin-left:6px;letter-spacing:.5px}
+.status-tag.tag-leave{background:#fdecea;color:var(--warn);border:1px solid #f1c2b9}
+.status-tag.tag-cancel{background:#eee;color:#666;border:1px solid #ddd}
+.status-tag.tag-sub{background:#fff4d6;color:#8c6d1f;border:1px solid #e6d49a}
+.status-tag.tag-extra{background:var(--green-l);color:var(--green-d);border:1px solid #c8d8cd}
+/* 整列顏色 */
+.hours-card .detail tr.row-leave td{background:#fff8f7}
+.hours-card .detail tr.row-sub td{background:#fffbf0}
+.hours-card .detail tr.row-extra td{background:#f1f7f3}
+.hours-card .detail .h-zero{color:var(--muted);text-decoration:line-through}
+
 /* History page */
 .hist-row{font-size:13px;background:#fff;padding:8px 12px;border-bottom:1px solid var(--line);}
 .hist-row .time{color:var(--muted);margin-right:8px}
@@ -1249,12 +1262,16 @@ function renderHours(r){
     var cc = STATE.clinics.find(function(c){return c.code===r.clinic;});
     clinicLabel = cc ? cc.name : r.clinic;
   }
+  var excPart = (r.excCount > 0)
+    ? '<span style="color:var(--warn)">含例外：<b>'+r.excCount+'</b> 筆（已折算工時）</span>'
+    : '';
   sum.innerHTML = '<div class="hours-summary-pill">'+
     '<span>期間：<b>'+r.from+'</b> ~ <b>'+r.to+'</b></span>'+
     '<span>院區：<b>'+clinicLabel+'</b></span>'+
     '<span>門診類型：<b>'+(r.service||'全部')+'</b></span>'+
     '<span>醫師人次：<b>'+r.rows.length+'</b></span>'+
     '<span>總時數：<b>'+r.grandTotal+'</b> 小時</span>'+
+    excPart+
     '</div>';
   // 列表
   var box=$('hours-table'); box.innerHTML='';
@@ -1272,22 +1289,38 @@ function renderHours(r){
       +'</div>';
     var showClinic = (r.clinic === 'all');
     var clinicHead = showClinic ? '<th>院區</th>' : '';
-    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th>'+clinicHead+'<th>門診類型</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>備註</th></tr></thead><tbody>';
+    var rowsHtml = '<table><thead><tr><th>日期</th><th>星期</th>'+clinicHead+'<th>門診類型</th><th>時段</th><th>時間</th><th style="text-align:right">時數</th><th>狀態 / 備註</th></tr></thead><tbody>';
     row.details.forEach(function(d){
       var clinicName = '';
       if (showClinic){
         var cc = STATE.clinics.find(function(c){return c.code===d.clinic;});
         clinicName = cc ? cc.name : (d.clinic||'');
       }
-      rowsHtml += '<tr>'
+      // 狀態 badge + 列顏色
+      var rowClass = '';
+      var badge = '';
+      var hoursDisplay = d.hours || 0;
+      if (d.status){
+        if (d.status==='請假'){ rowClass='row-leave'; badge='<span class="status-tag tag-leave">請假</span>'; }
+        else if (d.status==='休診'){ rowClass='row-leave'; badge='<span class="status-tag tag-cancel">休診</span>'; }
+        else if (d.status==='代診'){ rowClass='row-sub'; badge='<span class="status-tag tag-sub">代診</span>'; }
+        else if (d.status==='加診'){ rowClass='row-extra'; badge='<span class="status-tag tag-extra">加診</span>'; }
+        else if (d.status.indexOf('代診')>=0){
+          rowClass='row-leave';
+          badge='<span class="status-tag tag-sub">'+d.status+'</span>';
+        }
+        else { badge='<span class="status-tag tag-sub">'+d.status+'</span>'; }
+      }
+      var hoursHtml = (d.hours===0 && d.status) ? '<span class="h-zero">0</span>' : (d.hours||0);
+      rowsHtml += '<tr class="'+rowClass+'">'
         +'<td>'+d.date+'</td>'
         +'<td>'+WEEK[(d.weekday||1)-1]+'</td>'
         +(showClinic ? '<td>'+clinicName+'</td>' : '')
         +'<td>'+(d.service||'')+'</td>'
         +'<td>'+d.session+'</td>'
         +'<td>'+(d.start||'')+'~'+(d.end||'')+'</td>'
-        +'<td style="text-align:right">'+(d.hours||0)+'</td>'
-        +'<td style="color:var(--muted)">'+(d.note||'')+'</td>'
+        +'<td style="text-align:right">'+hoursHtml+'</td>'
+        +'<td style="color:var(--muted)">'+(d.note||'')+badge+'</td>'
         +'</tr>';
     });
     rowsHtml += '</tbody></table>';
@@ -1301,14 +1334,16 @@ function renderHours(r){
 function exportHoursCSV(){
   var r = STATE.hoursReport;
   if (!r || !r.rows || !r.rows.length){ toast('請先查詢','err'); return; }
-  var lines = ['醫師,日期,星期,院區,門診類型,時段,起始,結束,時數,備註'];
+  var lines = ['醫師,日期,星期,院區,門診類型,時段,起始,結束,時數,狀態,備註'];
   r.rows.forEach(function(row){
     row.details.forEach(function(d){
       var cc = STATE.clinics.find(function(c){return c.code===d.clinic;});
       var clinicName = cc ? cc.name : (d.clinic||'');
       var fields = [row.doctor, d.date, WEEK[(d.weekday||1)-1],
                     clinicName, d.service||'', d.session,
-                    d.start||'', d.end||'', d.hours||0, (d.note||'').replace(/"/g,'""')];
+                    d.start||'', d.end||'', d.hours||0,
+                    d.status||'正常',
+                    (d.note||'').replace(/"/g,'""')];
       lines.push(fields.map(function(x){
         var s=String(x);
         return /[,"\n]/.test(s) ? '"'+s+'"' : s;
