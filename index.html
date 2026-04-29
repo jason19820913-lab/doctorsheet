@@ -139,6 +139,20 @@ header .who{font-size:13px;opacity:.95}
 .slot .tilde{color:var(--muted);font-size:14px;line-height:1}
 /* 休診（沒有任何排班的格子）*/
 .cell-empty{color:var(--muted);font-size:18px;letter-spacing:4px;display:flex;align-items:center;justify-content:center;width:100%;font-weight:500}
+
+/* 醫師個人班表 */
+.doctor-slot{flex:1 1 calc(50% - 4px);min-width:0;padding:8px 4px;display:flex;flex-direction:column;
+  align-items:center;text-align:center;gap:6px;border-right:1px dashed var(--theme-divider);}
+.doctor-slot:last-child{border-right:none}
+.doctor-slot:only-child{flex-basis:100%;border-right:none}
+.doctor-slot .clinic-tag{display:inline-block;padding:3px 10px;border-radius:999px;
+  background:var(--green-l);color:var(--green-d);font-size:12px;font-weight:600;letter-spacing:1px;
+  border:1px solid #c8d8cd}
+.doctor-slot.svc-w .clinic-tag{background:var(--brown-l);color:var(--brown-d);border-color:#d6c8a8}
+.doctor-slot .time-block{display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:var(--text);font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1}
+.doctor-slot .time-block .tilde{color:var(--muted);font-size:13px}
+.doctor-slot .hours{font-size:11px;color:var(--muted)}
 .slot.exc-leave{background:#fff4f1;border-color:#f1c2b9}
 .slot.exc-sub{background:#fff8e1;border-color:#e6d49a}
 .slot.exc-cancel{background:#f0f0f0;border-color:#d0d0d0;text-decoration:line-through;color:var(--muted)}
@@ -266,6 +280,7 @@ body.exporting .print-head .title-text{ font-size:30px; }
 
 <nav class="tabs">
   <button data-tab="schedule" class="active" type="button">班表</button>
+  <button data-tab="doctor" type="button">醫師班表</button>
   <button data-tab="hours" type="button">工時報表</button>
   <button data-tab="exceptions" type="button">例外記錄</button>
   <button data-tab="history" type="button">修改歷史</button>
@@ -307,6 +322,38 @@ body.exporting .print-head .title-text{ font-size:30px; }
         </div>
       </div>
       <div class="schedule" id="schedule-grid"><!-- generated --></div>
+    </div>
+  </div>
+</section>
+
+<!-- 醫師個人班表頁 -->
+<section id="page-doctor" class="hide">
+  <div class="toolbar">
+    <span class="pill">醫師跨院區個人班表（依各院區週範本整合）</span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+      醫師
+      <select id="doctor-sel" style="padding:5px 10px;border:1px solid var(--line);border-radius:6px;min-width:120px"></select>
+    </label>
+    <div class="grow"></div>
+    <button class="btn" id="btn-doctor-png" type="button">匯出 PNG</button>
+    <button class="btn" id="btn-doctor-pdf" type="button">匯出 PDF</button>
+  </div>
+  <div class="schedule-wrap">
+    <div class="print-frame" id="doctor-frame">
+      <div class="print-head">
+        <div class="brand">
+          <div class="brand-logo" aria-hidden="true">
+            <img src="logo.png" alt="金鶯診所" crossorigin="anonymous"
+                 onerror="this.outerHTML='<svg viewBox=&quot;0 0 64 64&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;><g fill=&quot;#5d8a6b&quot;><path d=&quot;M14 38c0-8 6-14 14-14 6 0 11 4 13 9 1 2 3 4 5 4l4 1c1 0 1 1 0 2-3 3-9 6-15 6-3 0-6-1-8-2-2 4-7 6-12 6-2 0-3-1-3-3 0-2 1-4 2-5 0-1 0-2 0-4z&quot;/><circle cx=&quot;42&quot; cy=&quot;32&quot; r=&quot;2&quot; fill=&quot;#fff&quot;/><path d=&quot;M44 21c2-4 6-7 11-8 1 0 2 1 1 2-2 4-5 7-9 9-2 1-3 0-3-3z&quot;/></g></svg>'">
+          </div>
+          <div class="brand-name">金鶯診所</div>
+        </div>
+        <div class="title-wrap">
+          <div class="title-text" id="doctor-title">醫師個人班表</div>
+        </div>
+      </div>
+      <div id="doctor-summary" style="margin-bottom:12px"></div>
+      <div class="schedule" id="doctor-grid"></div>
     </div>
   </div>
 </section>
@@ -501,6 +548,7 @@ var STATE = {
   refDate: '',           // YYYY-MM-DD（影響顯示的「本週」）
   weekDates: [],         // 本週 7 天的日期
   hoursReport: null,     // 工時報表暫存
+  doctorSchedule: null,  // 醫師個人班表暫存
   editMode: false
 };
 var EDIT_SLOT = null;    // 目前編輯中的 slot 物件
@@ -662,6 +710,14 @@ function bindEvents(){
   $('hours-clinic').addEventListener('change', function(){
     if ($('hours-from').value && $('hours-to').value) loadHours();
   });
+  // 醫師個人班表
+  $('doctor-sel').addEventListener('change', function(){
+    var d = this.value;
+    if (d) try { localStorage.setItem('schedule_doctor', d); } catch(e){}
+    loadDoctorSchedule();
+  });
+  $('btn-doctor-png').addEventListener('click', exportDoctorPNG);
+  $('btn-doctor-pdf').addEventListener('click', exportDoctorPDF);
   // Slot 起訖時間變動 → 即時計算時數
   ['slot-start','slot-end'].forEach(function(id){
     $(id).addEventListener('input', updateSlotHoursInfo);
@@ -688,13 +744,26 @@ function switchTab(tab){
   document.querySelectorAll('.tabs button').forEach(function(b){
     b.classList.toggle('active', b.dataset.tab===tab);
   });
-  ['schedule','hours','exceptions','history'].forEach(function(t){ hide('page-'+t); });
+  ['schedule','doctor','hours','exceptions','history'].forEach(function(t){ hide('page-'+t); });
   show('page-'+tab);
   if (tab==='exceptions') renderExceptions();
   if (tab==='history') loadHistory();
   if (tab==='hours' && (!$('hours-from').value || !$('hours-to').value)){
     setHoursDateRange('this');
     if (STATE.user) loadHours();
+  }
+  if (tab==='doctor'){
+    fillDoctorSel();
+    // 還原上次選的醫師
+    try {
+      var last = localStorage.getItem('schedule_doctor');
+      if (last && STATE.doctors.indexOf(last) >= 0) {
+        $('doctor-sel').value = last;
+        loadDoctorSchedule();
+      } else {
+        renderDoctorPlaceholder();
+      }
+    } catch(e){ renderDoctorPlaceholder(); }
   }
 }
 
@@ -1369,6 +1438,149 @@ function loadHistory(){
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
 }); }
+
+/* ===================== 醫師個人班表 ===================== */
+function fillDoctorSel(){
+  var sel = $('doctor-sel'); if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">— 請選擇醫師 —</option>';
+  STATE.doctors.forEach(function(d){
+    var o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    sel.appendChild(o);
+  });
+  if (current && STATE.doctors.indexOf(current) >= 0) sel.value = current;
+}
+
+function renderDoctorPlaceholder(){
+  $('doctor-grid').innerHTML = '';
+  $('doctor-summary').innerHTML =
+    '<div style="text-align:center;color:var(--muted);padding:30px;font-size:14px">'+
+    '請從上方下拉選單選擇醫師，系統會自動整合該醫師在所有 13 個院區（健保 + 減重）的週範本，呈現完整個人班表'+
+    '</div>';
+  $('doctor-title').textContent = '醫師個人班表';
+}
+
+function loadDoctorSchedule(){
+  var doctor = $('doctor-sel').value;
+  if (!doctor){ renderDoctorPlaceholder(); return; }
+  $('doctor-grid').innerHTML = '<div style="grid-column:1 / -1;padding:30px;text-align:center;color:var(--muted)">載入中⋯</div>';
+  $('doctor-summary').innerHTML = '';
+  get({action:'getDoctorSchedule', doctor: doctor}, function(r){
+    if (r.error){ toast(r.error,'err'); $('doctor-grid').innerHTML=''; return; }
+    STATE.doctorSchedule = r;
+    renderDoctorSchedule();
+  });
+}
+
+function renderDoctorSchedule(){
+  var r = STATE.doctorSchedule;
+  if (!r) return;
+
+  // 標題
+  $('doctor-title').textContent = r.doctor + '   個人班表';
+
+  // 摘要
+  $('doctor-summary').innerHTML =
+    '<div class="hours-summary-pill">'+
+    '<span>醫師：<b>'+r.doctor+'</b></span>'+
+    '<span>跨院區：<b>'+r.clinicCount+'</b> 個</span>'+
+    '<span>每週看診：<b>'+r.weekdayCount+'</b> 天 · <b>'+r.sessionCount+'</b> 個時段</span>'+
+    '<span>每週總時數：<b>'+r.totalHours+'</b> 小時</span>'+
+    '</div>';
+
+  var grid = $('doctor-grid');
+  grid.innerHTML = '';
+
+  // 表頭
+  var corner = document.createElement('div'); corner.className='corner'; grid.appendChild(corner);
+  for (var i=0; i<7; i++){
+    var h = document.createElement('div'); h.className='head';
+    h.textContent = WEEK[i];
+    grid.appendChild(h);
+  }
+
+  // 每個時段一列
+  for (var s=0; s<SESSIONS.length; s++){
+    var session = SESSIONS[s];
+    var rowLast = (s===SESSIONS.length-1) ? ' row-last' : '';
+    var lab = document.createElement('div'); lab.className='session-label'+rowLast;
+    lab.textContent = session;
+    grid.appendChild(lab);
+
+    for (var w=1; w<=7; w++){
+      var cell = document.createElement('div'); cell.className='cell'+rowLast;
+      var items = r.rows.filter(function(it){
+        return it.weekday===w && it.session===session;
+      }).sort(function(a,b){ return (a.sort||0) - (b.sort||0); });
+
+      if (!items.length){
+        var empty = document.createElement('div');
+        empty.className = 'cell-empty';
+        empty.textContent = '休診';
+        cell.appendChild(empty);
+      } else {
+        items.forEach(function(it){
+          var div = document.createElement('div');
+          div.className = 'doctor-slot' + (it.service==='減重門診' ? ' svc-w' : '');
+          var clinicShort = (it.clinicName||'').replace('院區','');
+          var serviceShort = (it.service||'').replace('門診','');
+          div.innerHTML =
+            '<span class="clinic-tag">'+clinicShort+'·'+serviceShort+'</span>'+
+            '<div class="time-block">'+
+              '<div>'+it.start+'</div>'+
+              '<div class="tilde">~</div>'+
+              '<div>'+it.end+'</div>'+
+            '</div>'+
+            '<div class="hours">'+it.hours+' 小時</div>';
+          cell.appendChild(div);
+        });
+      }
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function exportDoctorPNG(){
+  if (!STATE.doctorSchedule){ toast('請先選擇醫師','err'); return; }
+  var node = document.getElementById('doctor-frame');
+  if (!node || !window.html2canvas){ toast('匯出工具尚未載入','err'); return; }
+  toast('產生 PNG 中…','ok');
+  document.body.classList.add('exporting');
+  setTimeout(function(){
+    html2canvas(node, {scale:2.5, backgroundColor:null, useCORS:true, logging:false,
+                       width:node.offsetWidth, height:node.offsetHeight}).then(function(canvas){
+      document.body.classList.remove('exporting');
+      var a4 = document.createElement('canvas');
+      a4.width = 2339; a4.height = 1654;
+      var ctx = a4.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, a4.width, a4.height);
+      ctx.drawImage(canvas, 0, 0, a4.width, a4.height);
+      var a = document.createElement('a');
+      a.href = a4.toDataURL('image/png');
+      a.download = '醫師班表-'+STATE.doctorSchedule.doctor+'-'+todayStr()+'.png';
+      a.click();
+    }).catch(function(e){ document.body.classList.remove('exporting'); toast('匯出失敗：'+e,'err'); });
+  }, 100);
+}
+
+function exportDoctorPDF(){
+  if (!STATE.doctorSchedule){ toast('請先選擇醫師','err'); return; }
+  var node = document.getElementById('doctor-frame');
+  if (!node || !window.html2canvas || !window.jspdf){ toast('匯出工具尚未載入','err'); return; }
+  toast('產生 PDF 中…','ok');
+  document.body.classList.add('exporting');
+  setTimeout(function(){
+    html2canvas(node, {scale:2.5, backgroundColor:null, useCORS:true, logging:false,
+                       width:node.offsetWidth, height:node.offsetHeight}).then(function(canvas){
+      document.body.classList.remove('exporting');
+      var imgData = canvas.toDataURL('image/png');
+      var pdf = new window.jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+      pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+      pdf.save('醫師班表-'+STATE.doctorSchedule.doctor+'-'+todayStr()+'.pdf');
+    }).catch(function(e){ document.body.classList.remove('exporting'); toast('匯出失敗：'+e,'err'); });
+  }, 100);
+}
 
 /* ===================== 匯出（A4 橫式：29.7×21cm）===================== */
 function captureNode(){ return document.getElementById('print-frame'); }
