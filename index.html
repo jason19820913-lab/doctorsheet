@@ -369,7 +369,7 @@ body.exporting .print-head .title-text{ font-size:30px; }
           <div class="brand-name">金鶯診所</div>
         </div>
         <div class="title-wrap">
-          <div class="title-text" id="doctor-title">醫師個人班表</div>
+          <div class="title-text" id="doctor-title" contenteditable="true" spellcheck="false">醫師個人班表</div>
         </div>
       </div>
       <div id="doctor-summary" style="margin-bottom:12px"></div>
@@ -1500,7 +1500,7 @@ function renderDoctorPlaceholder(){
     '<div style="text-align:center;color:var(--muted);padding:30px;font-size:14px">'+
     '請從上方下拉選單選擇醫師，系統會自動整合該醫師在所有 13 個院區（健保 + 減重）的週範本，呈現完整個人班表'+
     '</div>';
-  $('doctor-title').textContent = '醫師個人班表';
+  refreshDoctorTitle(null);
 }
 
 function loadDoctorSchedule(){
@@ -1519,8 +1519,8 @@ function renderDoctorSchedule(){
   var r = STATE.doctorSchedule;
   if (!r) return;
 
-  // 標題
-  $('doctor-title').textContent = r.doctor + '   個人班表';
+  // 標題（依醫師獨立記憶；點擊文字可直接編輯）
+  refreshDoctorTitle(r.doctor);
 
   // 摘要
   $('doctor-summary').innerHTML =
@@ -1730,6 +1730,29 @@ function bindTitlePersist(){
   t.addEventListener('input', function(){
     saveTitleFor(titleKey(), t.textContent.trim());
   });
+  // 醫師班表標題（依醫師獨立記憶）
+  var dt = $('doctor-title'); if (!dt) return;
+  dt.addEventListener('input', function(){
+    if (!STATE.doctorSchedule || !STATE.doctorSchedule.doctor) return;
+    saveDoctorTitleFor(STATE.doctorSchedule.doctor, dt.textContent.trim());
+  });
+}
+
+/* 醫師個人班表 — 標題依醫師獨立記憶 */
+function loadAllDoctorTitles(){
+  try { return JSON.parse(localStorage.getItem('schedule_doctor_titles')||'{}'); }
+  catch(e){ return {}; }
+}
+function saveDoctorTitleFor(doctor, text){
+  var all = loadAllDoctorTitles();
+  all[doctor] = text;
+  try{ localStorage.setItem('schedule_doctor_titles', JSON.stringify(all)); }catch(e){}
+}
+function refreshDoctorTitle(doctor){
+  var dt = $('doctor-title'); if (!dt) return;
+  if (!doctor){ dt.textContent = '醫師個人班表'; return; }
+  var all = loadAllDoctorTitles();
+  dt.textContent = all[doctor] || (doctor + '   個人班表');
 }
 
 /* ===================== 啟動 ===================== */
