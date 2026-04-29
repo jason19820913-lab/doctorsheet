@@ -133,7 +133,10 @@ header .who{font-size:13px;opacity:.95}
   font-size:14px;cursor:pointer;transition:background .15s;border-right:1px dashed var(--theme-divider);}
 .slot:last-child{border-right:none}
 .slot:only-child{flex-basis:100%;border-right:none}
-.slot .name{font-weight:600;color:var(--text);font-size:18px;letter-spacing:2px;line-height:1.2;margin-bottom:2px}
+.slot .name{font-weight:600;color:var(--text);font-size:18px;letter-spacing:1px;line-height:1.2;
+  margin-bottom:2px;white-space:nowrap;overflow:visible}
+/* 同一格有兩位醫師時字距再小一點，確保橫向不換行 */
+.slot:not(:only-child) .name{letter-spacing:0;font-size:17px}
 .slot .time-block{display:flex;flex-direction:column;align-items:center;gap:4px;
   color:var(--theme-d);font-size:18px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1}
 .slot .tilde{color:var(--muted);font-size:14px;line-height:1}
@@ -272,7 +275,8 @@ body.exporting .print-frame > .schedule{ flex:1 1 auto; }
 body.exporting .schedule .head{ font-size:20px; padding:16px 6px; letter-spacing:8px; }
 body.exporting .schedule .session-label{ font-size:26px; letter-spacing:10px; }
 body.exporting .schedule .cell{ min-height:0; }   /* 由 flex 撐開 */
-body.exporting .slot .name{ font-size:20px; }
+body.exporting .slot .name{ font-size:20px; letter-spacing:1px; white-space:nowrap }
+body.exporting .slot:not(:only-child) .name{ font-size:18px; letter-spacing:0 }
 body.exporting .slot .time-block{ font-size:20px; }
 body.exporting .print-head .brand-name{ font-size:26px; }
 body.exporting .print-head .title-text{ font-size:30px; }
