@@ -1122,6 +1122,16 @@ function updateSlotHoursInfo(){
   } else { info.textContent = '時數：—'; }
 }
 
+function buildConflictMsg(doctor, conflicts){
+  var msg = '⚠️ 衝突提醒\n\n「'+doctor+'」在以下時段已有排班 / 代診 / 加診：\n\n';
+  conflicts.forEach(function(x){
+    var src = (x.source && x.source!=='排班') ? '['+x.source+'] ' : '';
+    msg += '• '+x.date+'  '+x.clinicName+'  '+x.session+'  '+x.start+'~'+x.end+'  '+src+'\n';
+  });
+  msg += '\n此時間與上列院區相衝突，仍要儲存嗎？';
+  return msg;
+}
+
 function saveSlot(){
   var p = {
     action:'saveSlot',
@@ -1141,10 +1151,21 @@ function saveSlot(){
   if(!p.start || !p.end){ toast('請填寫起訖時間','err'); return; }
   if (p.start >= p.end){ toast('結束時間須晚於起始時間','err'); return; }
   $('btn-slot-save').disabled = true;
-  get(p, function(r){
-    $('btn-slot-save').disabled = false;
-    if (r.error){ toast(r.error,'err'); return; }
-    hide('mask-slot'); toast('儲存成功','ok'); loadSchedule();
+
+  // 先檢查衝突，再儲存
+  get({action:'checkConflicts', doctor:p.doctor, date:p.date,
+       start:p.start, end:p.end, excludeId:p.id||''}, function(c){
+    if (c && c.conflicts && c.conflicts.length){
+      if (!confirm(buildConflictMsg(p.doctor, c.conflicts))){
+        $('btn-slot-save').disabled = false;
+        return;
+      }
+    }
+    get(p, function(r){
+      $('btn-slot-save').disabled = false;
+      if (r.error){ toast(r.error,'err'); return; }
+      hide('mask-slot'); toast('儲存成功','ok'); loadSchedule();
+    });
   });
 }
 
@@ -1439,11 +1460,31 @@ function saveException(){
   };
   if (!p.date){ toast('請選日期','err'); return; }
   $('btn-exc-save').disabled = true;
-  get(p, function(r){
-    $('btn-exc-save').disabled = false;
-    if (r.error){ toast(r.error,'err'); return; }
-    hide('mask-exc'); toast('儲存成功','ok'); loadExceptions();
-  });
+
+  function actuallySave(){
+    get(p, function(r){
+      $('btn-exc-save').disabled = false;
+      if (r.error){ toast(r.error,'err'); return; }
+      hide('mask-exc'); toast('儲存成功','ok'); loadExceptions();
+    });
+  }
+
+  // 代班/加診：檢查代班醫師是否在該時段有其他院區的排班/代診衝突
+  var checkSub = (p.type==='代班' || p.type==='加診') && p.subDoctor && p.start && p.end;
+  if (checkSub){
+    get({action:'checkConflicts', doctor:p.subDoctor, date:p.date,
+         start:p.start, end:p.end, excludeExcId:p.id||''}, function(c){
+      if (c && c.conflicts && c.conflicts.length){
+        if (!confirm(buildConflictMsg(p.subDoctor, c.conflicts))){
+          $('btn-exc-save').disabled = false;
+          return;
+        }
+      }
+      actuallySave();
+    });
+  } else {
+    actuallySave();
+  }
 }
 
 function deleteException(){
