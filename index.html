@@ -788,17 +788,40 @@ function switchTab(tab){
 }
 
 /* ===================== 認證 ===================== */
+function roleLabel(role){
+  if (role==='admin')  return '管理者';
+  if (role==='doctor') return '醫師';
+  if (role==='viewer') return '檢視者';
+  return '訪客';
+}
+
 function applyAuthUI(){
   if (STATE.user){
-    $('who').textContent = STATE.user.name + ' · ' + (STATE.user.role==='admin'?'管理者':'員工');
+    var role = STATE.user.role || 'viewer';
+    var isAdmin  = (role === 'admin');
+    var isDoctor = (role === 'doctor');
+
+    $('who').textContent = STATE.user.name + ' · ' + roleLabel(role);
     hide('btn-login'); show('btn-logout');
-    if (STATE.user.role==='admin'){
-      show('btn-edit-mode'); show('btn-add-exc'); show('btn-apply-tpl');
+
+    // ── 管理者專屬按鈕 ──
+    if (isAdmin){
+      show('btn-edit-mode'); show('btn-apply-tpl');
       show('btn-publish'); show('btn-clear-month');
     } else {
-      hide('btn-edit-mode'); hide('btn-add-exc'); hide('btn-apply-tpl');
+      hide('btn-edit-mode'); hide('btn-apply-tpl');
       hide('btn-publish'); hide('btn-clear-month');
+      // 退出編輯模式
+      STATE.editMode = false;
+      document.body.classList.remove('edit-on');
+      var be = $('btn-edit-mode');
+      if (be){ be.textContent='進入編輯模式'; be.classList.remove('warn'); }
     }
+
+    // ── 例外記錄：admin 與 doctor 都可新增 ──
+    if (isAdmin || isDoctor) show('btn-add-exc');
+    else hide('btn-add-exc');
+
   } else {
     $('who').textContent = '未登入';
     show('btn-login'); hide('btn-logout');
@@ -807,6 +830,8 @@ function applyAuthUI(){
     STATE.editMode = false;
     document.body.classList.remove('edit-on');
   }
+  renderSchedule(); // 重畫以更新可編輯狀態
+  renderExceptions();
 }
 
 function doLogin(){
@@ -830,7 +855,7 @@ function doLogout(){
 }
 
 function toggleEditMode(){
-  if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
+  if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者權限才能進入編輯模式','err'); return; }
   STATE.editMode = !STATE.editMode;
   $('btn-edit-mode').textContent = STATE.editMode ? '結束編輯' : '進入編輯模式';
   $('btn-edit-mode').classList.toggle('warn', STATE.editMode);
@@ -1411,7 +1436,7 @@ function renderExceptions(){
       '<div class="date">'+e.date+'<div style="font-size:11px;color:var(--muted)">'+WEEK[(e.weekday||1)-1]+'</div></div>'+
       sess + type +
       '<div class="body">'+body+'</div>';
-    if (STATE.user && STATE.user.role==='admin'){
+    if (STATE.user && (STATE.user.role==='admin' || STATE.user.role==='doctor')){
       var act=document.createElement('div'); act.className='actions';
       act.innerHTML='<button class="btn" type="button">修改</button>';
       var btnEdit = act.querySelector('button');
@@ -1423,7 +1448,10 @@ function renderExceptions(){
 }
 
 function openExcModal(idx){
-  if (!STATE.user || STATE.user.role!=='admin'){ toast('需要管理者登入','err'); return; }
+  if (!STATE.user){ toast('請先登入','err'); return; }
+  if (STATE.user.role !== 'admin' && STATE.user.role !== 'doctor'){
+    toast('需要管理者或醫師權限','err'); return;
+  }
   EDIT_EXC = (idx==null) ? null : Object.assign({}, STATE.exceptions[idx]);
   $('exc-title').textContent = EDIT_EXC ? '編輯例外' : '新增例外';
   $('exc-date').value    = EDIT_EXC ? EDIT_EXC.date    : (STATE.refDate || todayStr());
