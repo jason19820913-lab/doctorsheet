@@ -1044,20 +1044,6 @@ function renderSchedule(){
               || (STATE.clinic === 'yingge' ? '鶯歌院區' : STATE.clinic);
   $('schedule-info').textContent = '本週班表 — ' + cName + ' · ' + STATE.service;
 
-  // 沒資料時顯示提示
-  if (!STATE.schedule || !STATE.schedule.length){
-    var hint = document.createElement('div');
-    hint.id = 'empty-hint';
-    hint.style.cssText = 'background:#fff8e1;border:1px solid #e6d49a;color:#8c6d1f;'
-      + 'padding:14px 18px;border-radius:8px;margin-bottom:14px;font-size:14px;line-height:1.7';
-    hint.innerHTML = '<b>📅 本週尚無排班記錄</b><br>'
-      + '若是首次使用，請：<br>'
-      + '1. 點右上「<b>登入</b>」（預設 Admin / 0000）<br>'
-      + '2. 工具列會出現「<b>套用週範本到月份</b>」按鈕 → 點選後選月份 → 套用<br>'
-      + '3. 整月每天的排班就會自動產生，回到此頁即可看到班表';
-    var frame = document.querySelector('.print-frame');
-    frame.parentNode.insertBefore(hint, frame);
-  }
 
   // 計算本週的日期清單（依 refDate）
   var weekDates = weekRange(STATE.refDate || todayStr());
