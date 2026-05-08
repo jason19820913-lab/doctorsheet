@@ -153,13 +153,23 @@ header .who{font-size:13px;opacity:.95}
   overflow:hidden}
 .doctor-slot:last-child{border-right:none}
 .doctor-slot:only-child{flex-basis:100%;border-right:none}
-.doctor-slot .clinic-tag{display:inline-block;padding:5px 14px;border-radius:999px;
-  background:var(--green-l);color:var(--green-d);font-size:15px;font-weight:600;letter-spacing:1px;
-  border:1px solid #c8d8cd;line-height:1.3;white-space:nowrap;
-  max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:clip}
+/* tag 改成「上下兩行」結構：上=院區、下=門診類型 */
+.doctor-slot .clinic-tag{display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:5px 12px;border-radius:14px;
+  background:var(--green-l);color:var(--green-d);
+  border:1px solid #c8d8cd;line-height:1.2;
+  white-space:nowrap;max-width:100%;box-sizing:border-box}
+.doctor-slot .clinic-tag .ct-clinic{font-size:14px;font-weight:600;letter-spacing:1px}
+.doctor-slot .clinic-tag .ct-service{font-size:11px;font-weight:500;opacity:.85;letter-spacing:0}
 .doctor-slot.svc-w .clinic-tag{background:var(--brown-l);color:var(--brown-d);border-color:#d6c8a8}
-/* 同一格有兩位醫師時，tag 字級與內距縮小避免被切掉 */
-.doctor-slot:not(:only-child) .clinic-tag{font-size:12px;padding:3px 8px;letter-spacing:0;border-width:1px}
+
+/* 同一格只有一位醫師時，可以放大字級 */
+.doctor-slot:only-child .clinic-tag{padding:6px 16px;border-radius:999px;flex-direction:row;gap:6px}
+.doctor-slot:only-child .clinic-tag .ct-clinic{font-size:15px}
+.doctor-slot:only-child .clinic-tag .ct-service{font-size:13px;opacity:.95}
+.doctor-slot:only-child .clinic-tag .ct-service::before{content:'·';margin-right:4px}
+
+/* 同一格兩位醫師：保持上下兩行；時間略縮 */
 .doctor-slot:not(:only-child) .time-block{font-size:17px}
 .doctor-slot:not(:only-child) .time-block .tilde{font-size:13px}
 .doctor-slot .time-block{display:flex;flex-direction:column;align-items:center;gap:5px;
@@ -1716,12 +1726,14 @@ function renderDoctorSchedule(){
 
           var clinicName = it.clinicName || '';
           var serviceShort = (it.service||'').replace('門診','') || (it.status==='代診' || it.status==='加診' ? it.status : '');
-          var statusBadge = '';
-          if (it.status){
-            statusBadge = '<div class="doc-status">'+it.status+'</div>';
-          }
+          var tagHtml =
+            '<span class="clinic-tag">'+
+              '<span class="ct-clinic">'+clinicName+'</span>'+
+              (serviceShort ? '<span class="ct-service">'+serviceShort+'</span>' : '')+
+            '</span>';
+          var statusBadge = it.status ? '<div class="doc-status">'+it.status+'</div>' : '';
           div.innerHTML =
-            '<span class="clinic-tag">'+clinicName+(serviceShort?' · '+serviceShort:'')+'</span>'+
+            tagHtml +
             '<div class="time-block">'+
               '<div>'+it.start+'</div>'+
               '<div class="tilde">~</div>'+
