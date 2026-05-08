@@ -148,17 +148,36 @@ header .who{font-size:13px;opacity:.95}
 #doctor-grid .cell{min-height:160px}
 
 /* 醫師個人班表 */
-.doctor-slot{flex:1 1 calc(50% - 4px);min-width:0;padding:14px 6px;display:flex;flex-direction:column;
-  align-items:center;text-align:center;gap:10px;border-right:1px dashed var(--theme-divider);}
+.doctor-slot{flex:1 1 calc(50% - 4px);min-width:0;padding:14px 4px;display:flex;flex-direction:column;
+  align-items:center;text-align:center;gap:10px;border-right:1px dashed var(--theme-divider);
+  overflow:hidden}
 .doctor-slot:last-child{border-right:none}
 .doctor-slot:only-child{flex-basis:100%;border-right:none}
 .doctor-slot .clinic-tag{display:inline-block;padding:5px 14px;border-radius:999px;
   background:var(--green-l);color:var(--green-d);font-size:15px;font-weight:600;letter-spacing:1px;
-  border:1px solid #c8d8cd;line-height:1.3;white-space:nowrap}
+  border:1px solid #c8d8cd;line-height:1.3;white-space:nowrap;
+  max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:clip}
 .doctor-slot.svc-w .clinic-tag{background:var(--brown-l);color:var(--brown-d);border-color:#d6c8a8}
+/* 同一格有兩位醫師時，tag 字級與內距縮小避免被切掉 */
+.doctor-slot:not(:only-child) .clinic-tag{font-size:12px;padding:3px 8px;letter-spacing:0;border-width:1px}
+.doctor-slot:not(:only-child) .time-block{font-size:17px}
+.doctor-slot:not(:only-child) .time-block .tilde{font-size:13px}
 .doctor-slot .time-block{display:flex;flex-direction:column;align-items:center;gap:5px;
   color:var(--text);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1}
 .doctor-slot .time-block .tilde{color:var(--muted);font-size:15px}
+.doctor-slot .doc-status{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.5px}
+.doctor-slot.st-leave  {background:#fff8f7;border-radius:6px}
+.doctor-slot.st-leave  .clinic-tag{opacity:.55}
+.doctor-slot.st-leave  .time-block{color:var(--muted);text-decoration:line-through}
+.doctor-slot.st-leave  .doc-status{background:#fdecea;color:var(--warn);border:1px solid #f1c2b9}
+.doctor-slot.st-cancel {background:#f8f8f8;border-radius:6px}
+.doctor-slot.st-cancel .clinic-tag{opacity:.5}
+.doctor-slot.st-cancel .time-block{color:var(--muted);text-decoration:line-through}
+.doctor-slot.st-cancel .doc-status{background:#eee;color:#666;border:1px solid #ddd}
+.doctor-slot.st-sub    {background:#fffbf0;border-radius:6px}
+.doctor-slot.st-sub    .doc-status{background:#fff4d6;color:#8c6d1f;border:1px solid #e6d49a}
+.doctor-slot.st-extra  {background:#f1f7f3;border-radius:6px}
+.doctor-slot.st-extra  .doc-status{background:var(--green-l);color:var(--green-d);border:1px solid #c8d8cd}
 .slot.exc-leave{background:#fff4f1;border-color:#f1c2b9}
 .slot.exc-sub{background:#fff8e1;border-color:#e6d49a}
 .slot.exc-cancel{background:#f0f0f0;border-color:#d0d0d0;text-decoration:line-through;color:var(--muted)}
@@ -349,11 +368,15 @@ body.exporting .print-head .title-text{ font-size:30px; }
 <!-- 醫師個人班表頁 -->
 <section id="page-doctor" class="hide">
   <div class="toolbar">
-    <span class="pill">醫師跨院區個人班表（依各院區週範本整合）</span>
+    <span class="pill">醫師跨院區個人週班表（含請假/代診/加診）</span>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px">
       醫師
       <select id="doctor-sel" style="padding:5px 10px;border:1px solid var(--line);border-radius:6px;min-width:120px"></select>
     </label>
+    <button class="btn" id="btn-doc-prev-week" type="button" title="上一週">←&nbsp;上週</button>
+    <input type="date" id="doc-ref-date" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px">
+    <button class="btn" id="btn-doc-next-week" type="button" title="下一週">下週&nbsp;→</button>
+    <button class="btn" id="btn-doc-this-week" type="button" title="跳回本週">本週</button>
     <div class="grow"></div>
     <button class="btn" id="btn-doctor-png" type="button">匯出 PNG</button>
     <button class="btn" id="btn-doctor-pdf" type="button">匯出 PDF</button>
@@ -569,6 +592,7 @@ var STATE = {
   weekDates: [],         // 本週 7 天的日期
   hoursReport: null,     // 工時報表暫存
   doctorSchedule: null,  // 醫師個人班表暫存
+  doctorRefDate: '',     // 醫師班表的參考日期（決定哪一週）
   editMode: false
 };
 var EDIT_SLOT = null;    // 目前編輯中的 slot 物件
@@ -738,6 +762,18 @@ function bindEvents(){
   });
   $('btn-doctor-png').addEventListener('click', exportDoctorPNG);
   $('btn-doctor-pdf').addEventListener('click', exportDoctorPDF);
+  // 醫師班表 — 週切換
+  $('btn-doc-prev-week').addEventListener('click', function(){ doctorGotoWeek(-1); });
+  $('btn-doc-next-week').addEventListener('click', function(){ doctorGotoWeek( 1); });
+  $('btn-doc-this-week').addEventListener('click', function(){
+    STATE.doctorRefDate = todayStr();
+    $('doc-ref-date').value = STATE.doctorRefDate;
+    loadDoctorSchedule();
+  });
+  $('doc-ref-date').addEventListener('change', function(){
+    STATE.doctorRefDate = this.value || todayStr();
+    loadDoctorSchedule();
+  });
   // Slot 起訖時間變動 → 即時計算時數
   ['slot-start','slot-end'].forEach(function(id){
     $(id).addEventListener('input', updateSlotHoursInfo);
@@ -774,6 +810,10 @@ function switchTab(tab){
   }
   if (tab==='doctor'){
     fillDoctorSel();
+    if (!STATE.doctorRefDate){
+      STATE.doctorRefDate = todayStr();
+      $('doc-ref-date').value = STATE.doctorRefDate;
+    }
     // 還原上次選的醫師
     try {
       var last = localStorage.getItem('schedule_doctor');
@@ -1572,12 +1612,29 @@ function renderDoctorPlaceholder(){
   refreshDoctorTitle(null);
 }
 
+/* 切換醫師班表的週 */
+function doctorGotoWeek(delta){
+  var base = STATE.doctorRefDate || todayStr();
+  var d = new Date(base + 'T00:00:00');
+  if (isNaN(d.getTime())) d = new Date();
+  d.setDate(d.getDate() + delta * 7);
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  STATE.doctorRefDate = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  $('doc-ref-date').value = STATE.doctorRefDate;
+  loadDoctorSchedule();
+}
+
 function loadDoctorSchedule(){
   var doctor = $('doctor-sel').value;
   if (!doctor){ renderDoctorPlaceholder(); return; }
+  if (!STATE.doctorRefDate) STATE.doctorRefDate = todayStr();
+  if (!$('doc-ref-date').value) $('doc-ref-date').value = STATE.doctorRefDate;
+  var weekDates = weekRange(STATE.doctorRefDate);
+  STATE.doctorWeekDates = weekDates;
   $('doctor-grid').innerHTML = '<div style="grid-column:1 / -1;padding:30px;text-align:center;color:var(--muted)">載入中⋯</div>';
   $('doctor-summary').innerHTML = '';
-  get({action:'getDoctorSchedule', doctor: doctor}, function(r){
+  get({action:'getDoctorSchedule', doctor: doctor,
+       from: weekDates[0], to: weekDates[6]}, function(r){
     if (r.error){ toast(r.error,'err'); $('doctor-grid').innerHTML=''; return; }
     STATE.doctorSchedule = r;
     renderDoctorSchedule();
@@ -1588,28 +1645,43 @@ function renderDoctorSchedule(){
   var r = STATE.doctorSchedule;
   if (!r) return;
 
-  // 標題（依醫師獨立記憶；點擊文字可直接編輯）
+  // 標題
   refreshDoctorTitle(r.doctor);
 
   // 摘要
+  var excPart = (r.excCount > 0)
+    ? '<span style="color:var(--warn)">含例外：<b>'+r.excCount+'</b> 筆（請假/代診/加診）</span>'
+    : '';
   $('doctor-summary').innerHTML =
     '<div class="hours-summary-pill">'+
     '<span>醫師：<b>'+r.doctor+'</b></span>'+
+    '<span>期間：<b>'+r.from+'</b> ~ <b>'+r.to+'</b></span>'+
     '<span>跨院區：<b>'+r.clinicCount+'</b> 個</span>'+
-    '<span>每週看診：<b>'+r.weekdayCount+'</b> 天 · <b>'+r.sessionCount+'</b> 個時段</span>'+
-    '<span>每週總時數：<b>'+r.totalHours+'</b> 小時</span>'+
+    '<span>看診：<b>'+r.weekdayCount+'</b> 天 · <b>'+r.sessionCount+'</b> 個時段</span>'+
+    '<span>本週總時數：<b>'+r.totalHours+'</b> 小時</span>'+
+    excPart+
     '</div>';
 
   var grid = $('doctor-grid');
   grid.innerHTML = '';
 
-  // 表頭
+  // 算本週 7 天日期
+  var weekDates = STATE.doctorWeekDates || weekRange(STATE.doctorRefDate || todayStr());
+
+  // 表頭：星期 + 日期
   var corner = document.createElement('div'); corner.className='corner'; grid.appendChild(corner);
   for (var i=0; i<7; i++){
     var h = document.createElement('div'); h.className='head';
-    h.textContent = WEEK[i];
+    h.innerHTML = WEEK[i] + '<div style="font-size:12px;font-weight:400;opacity:.85;margin-top:2px">'+weekDates[i].slice(5)+'</div>';
     grid.appendChild(h);
   }
+
+  // 把 rows 依「日期 + 時段」分組
+  var byDateSession = {};
+  r.rows.forEach(function(it){
+    var key = it.date + '|' + it.session;
+    (byDateSession[key] = byDateSession[key] || []).push(it);
+  });
 
   // 每個時段一列
   for (var s=0; s<SESSIONS.length; s++){
@@ -1621,9 +1693,9 @@ function renderDoctorSchedule(){
 
     for (var w=1; w<=7; w++){
       var cell = document.createElement('div'); cell.className='cell'+rowLast;
-      var items = r.rows.filter(function(it){
-        return it.weekday===w && it.session===session;
-      }).sort(function(a,b){ return (a.sort||0) - (b.sort||0); });
+      var dateStr = weekDates[w-1];
+      var items = (byDateSession[dateStr+'|'+session] || []).slice()
+                    .sort(function(a,b){ return (a.sort||0)-(b.sort||0); });
 
       if (!items.length){
         var empty = document.createElement('div');
@@ -1633,16 +1705,29 @@ function renderDoctorSchedule(){
       } else {
         items.forEach(function(it){
           var div = document.createElement('div');
-          div.className = 'doctor-slot' + (it.service==='減重門診' ? ' svc-w' : '');
+          var classes = ['doctor-slot'];
+          if (it.service==='減重門診') classes.push('svc-w');
+          // 狀態樣式
+          if (it.status==='請假') classes.push('st-leave');
+          else if (it.status==='休診') classes.push('st-cancel');
+          else if (it.status==='代診' || (it.status||'').indexOf('代診')>=0) classes.push('st-sub');
+          else if (it.status==='加診') classes.push('st-extra');
+          div.className = classes.join(' ');
+
           var clinicName = it.clinicName || '';
-          var serviceShort = (it.service||'').replace('門診','');
+          var serviceShort = (it.service||'').replace('門診','') || (it.status==='代診' || it.status==='加診' ? it.status : '');
+          var statusBadge = '';
+          if (it.status){
+            statusBadge = '<div class="doc-status">'+it.status+'</div>';
+          }
           div.innerHTML =
-            '<span class="clinic-tag">'+clinicName+' · '+serviceShort+'</span>'+
+            '<span class="clinic-tag">'+clinicName+(serviceShort?' · '+serviceShort:'')+'</span>'+
             '<div class="time-block">'+
               '<div>'+it.start+'</div>'+
               '<div class="tilde">~</div>'+
               '<div>'+it.end+'</div>'+
-            '</div>';
+            '</div>'+
+            statusBadge;
           cell.appendChild(div);
         });
       }
