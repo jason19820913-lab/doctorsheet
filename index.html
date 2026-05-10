@@ -208,6 +208,10 @@ header .who{font-size:13px;opacity:.95}
 .list .row .type-代班{background:#fff4d6;color:#8c6d1f}
 .list .row .type-取消{background:#eee;color:#666}
 .list .row .type-加診{background:var(--green-l);color:var(--green-d)}
+.list .row .type-bh-leave {background:#fdecea;color:var(--warn)}
+.list .row .type-bh-sub   {background:#fff4d6;color:#8c6d1f}
+.list .row .type-bh-cancel{background:#eee;color:#666}
+.list .row .type-bh-extra {background:var(--green-l);color:var(--green-d)}
 .list .row .body{flex:1}
 .list .row .actions{display:flex;gap:6px}
 .list .row .actions .btn{padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:#fff}
@@ -554,7 +558,7 @@ body.exporting .print-head .title-text{ font-size:30px; }
       </div>
       <div class="row2">
         <label>類型
-          <select id="exc-type"><option>請假</option><option>代班</option><option>取消</option><option>加診</option></select>
+          <select id="exc-type"></select>
         </label>
         <label>原醫師
           <select id="exc-orig"></select>
@@ -595,6 +599,12 @@ var STATE = {
   clinics: [],
   service: '健保門診',     // 門診類型：健保門診 / 減重門診
   services: ['健保門診', '減重門診'],
+  exceptionTypes: [      // 例外類型動態載入（fallback 預設值）
+    {name:'請假', behavior:'leave'},
+    {name:'代班', behavior:'sub'},
+    {name:'取消', behavior:'cancel'},
+    {name:'加診', behavior:'extra'}
+  ],
   doctors: [],
   schedule: [],          // 排班記錄（按日期）
   exceptions: [],        // 例外記錄
@@ -921,6 +931,8 @@ function loadInit(){
     STATE.doctors = r.doctors || [];
     STATE.services = r.services || ['健保門診', '減重門診'];
     if (r.defaultService) STATE.service = r.defaultService;
+    if (r.exceptionTypes && r.exceptionTypes.length) STATE.exceptionTypes = r.exceptionTypes;
+    fillExcTypeSel();
     // 還原上次選的門診類型
     try {
       var lastSvc = localStorage.getItem('schedule_service');
@@ -1459,13 +1471,14 @@ function renderExceptions(){
   }
   STATE.exceptions.forEach(function(e, idx){
     var row=document.createElement('div'); row.className='row';
-    var type='<span class="session type-'+e.type+'">'+e.type+'</span>';
+    var bh = getBehaviorOf(e.type);
+    var type='<span class="session type-bh-'+bh+'">'+e.type+'</span>';
     var sess='<span class="session">'+e.session+'</span>';
     var body='';
-    if (e.type==='代班') body='<b>'+(e.subDoctor||'(未指定)')+'</b> 代 <b>'+e.origDoctor+'</b>';
-    else if (e.type==='請假') body='<b>'+e.origDoctor+'</b> 請假';
-    else if (e.type==='取消') body='本時段取消';
-    else if (e.type==='加診') body='加診：<b>'+(e.subDoctor||e.origDoctor||'')+'</b>';
+    if (bh==='sub')        body='<b>'+(e.subDoctor||'(未指定)')+'</b> 代 <b>'+e.origDoctor+'</b>';
+    else if (bh==='leave') body='<b>'+e.origDoctor+'</b> '+e.type;
+    else if (bh==='cancel')body='本時段取消';
+    else if (bh==='extra') body=e.type+'：<b>'+(e.subDoctor||e.origDoctor||'')+'</b>';
     if (e.start && e.end) body += ' · '+e.start+'~'+e.end;
     if (e.note) body += '　備註：'+e.note;
     row.innerHTML =
@@ -1502,9 +1515,35 @@ function openExcModal(idx){
   updateExcSubVisibility();
   show('mask-exc');
 }
+function fillExcTypeSel(){
+  var sel = $('exc-type'); if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '';
+  STATE.exceptionTypes.forEach(function(t){
+    var o = document.createElement('option');
+    o.value = t.name; o.textContent = t.name;
+    sel.appendChild(o);
+  });
+  if (current && STATE.exceptionTypes.some(function(t){return t.name===current;})) sel.value = current;
+}
+
+function getBehaviorOf(typeName){
+  var name = String(typeName||'').trim();
+  for (var i=0; i<STATE.exceptionTypes.length; i++){
+    if (STATE.exceptionTypes[i].name === name) return STATE.exceptionTypes[i].behavior;
+  }
+  // legacy fallback
+  if (name==='請假') return 'leave';
+  if (name==='代班') return 'sub';
+  if (name==='取消') return 'cancel';
+  if (name==='加診') return 'extra';
+  return 'leave';
+}
+
 function updateExcSubVisibility(){
-  var t=$('exc-type').value;
-  $('exc-sub-wrap').style.display = (t==='代班'||t==='加診') ? '' : 'none';
+  var t = $('exc-type').value;
+  var bh = getBehaviorOf(t);
+  $('exc-sub-wrap').style.display = (bh==='sub' || bh==='extra') ? '' : 'none';
 }
 
 function saveException(){
